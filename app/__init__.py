@@ -1,12 +1,64 @@
+import os
 import click
+import configparser
+
+from click_shell import shell
+
+from twilio.rest import Client
+from twilio.jwt.access_token import AccessToken
+from twilio.jwt.access_token.grants import ChatGrant
+from twilio.base.exceptions import TwilioRestException
+
+config = configparser.ConfigParser()
+welcome = "Welcome to the cchat app 🥳 \n" \
+          "Run cchat --help for options.\n"
+prompt = 'cchat > '
+client = None
 
 
-@click.group(invoke_without_command=True)
+class Connect:
+    def __init__(self):
+        self.account_sid = os.getenv('ACCOUNT_SID')
+        self.api_key = os.getenv('API_KEY')
+        self.api_secret = os.getenv('API_SECRET')
+        self.service_sid = os.getenv('SERVICE_SID')
+        self.auth_token = os.getenv('AUTH_TOKEN')
+        self.client = Client(self.account_sid, self.auth_token)
+
+
+@shell(prompt=prompt, intro=welcome)
 @click.pass_context
 def cli(ctx):
-    if ctx.invoked_subcommand is None:
-        click.echo("Welcome to the cchat app 🥳")
-        click.echo("Run contacts --help for options.")
+    ctx.obj = Connect()
+    global client
+    client = ctx.obj.client
 
 
-from . import auth
+@cli.command()
+@click.argument('identity')
+@click.pass_obj
+def login(ctx, identity):
+    try:
+        user = client.chat.services(ctx.service_sid).users.create(
+            identity=identity)
+        config['user'] = {}
+        config['user']['identity'] = identity
+        config['user']['sid'] = user.sid
+        with open('.cchat.cfg', 'w+') as configfile:
+            config.write(configfile)
+        click.echo(f"New user created: {identity}.")
+    except TwilioRestException as err:
+        if err.status == 409:
+            click.echo(f"Welcome back, {identity}.")
+        else:
+            click.echo(err.msg)
+
+    # # Create access token with credentials
+    # token = AccessToken(account_sid, api_key, api_secret, identity=identity)
+    #
+    # # Create a Chat grant and add to token
+    # chat_grant = ChatGrant(service_sid=service_sid)
+    # token.add_grant(chat_grant)
+    #
+    # # Return token info as JSON
+    # print(token.to_jwt())
