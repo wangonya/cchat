@@ -3,6 +3,7 @@ import click
 import configparser
 
 from click_shell import shell
+from halo import Halo
 
 from twilio.rest import Client
 from twilio.jwt.access_token import AccessToken
@@ -10,6 +11,7 @@ from twilio.jwt.access_token.grants import ChatGrant
 from twilio.base.exceptions import TwilioRestException
 
 config = configparser.ConfigParser()
+spinner = Halo(text='Connecting...', spinner='dots', text_color="green")
 welcome = "Welcome to the cchat app 🥳 \n" \
           "Run cchat --help for options.\n"
 prompt = 'cchat > '
@@ -29,9 +31,11 @@ class Connect:
 @shell(prompt=prompt, intro=welcome)
 @click.pass_context
 def cli(ctx):
+    spinner.start()
     ctx.obj = Connect()
     global client
     client = ctx.obj.client
+    spinner.succeed("Connected")
 
 
 @cli.command()
@@ -46,12 +50,12 @@ def login(ctx, identity):
         config['user']['sid'] = user.sid
         with open('.cchat.cfg', 'w+') as configfile:
             config.write(configfile)
-        click.echo(f"New user created: {identity}.")
+        spinner.info(f"New user created: {identity}.")
     except TwilioRestException as err:
         if err.status == 409:
-            click.echo(f"Welcome back, {identity}.")
+            spinner.info(f"Welcome back, {identity}.")
         else:
-            click.echo(err.msg)
+            spinner.fail(err.msg)
 
     # # Create access token with credentials
     # token = AccessToken(account_sid, api_key, api_secret, identity=identity)
