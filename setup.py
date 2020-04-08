@@ -21,11 +21,12 @@ setup(
         "Programming Language :: Python :: 3.7",
     ],
     install_requires=[
-        "Click",
+        "prompt_toolkit",
         "requests",
+        "twilio",
     ],
     entry_points="""
         [console_scripts]
-        cchat=app:cli
+        cchat=app:main
         """,
 )

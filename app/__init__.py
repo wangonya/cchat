@@ -1,24 +1,26 @@
 import os
-import click
-import configparser
-
-from click_shell import shell
-from halo import Halo
+import threading
 
 from twilio.rest import Client
-from twilio.jwt.access_token import AccessToken
-from twilio.jwt.access_token.grants import ChatGrant
-from twilio.base.exceptions import TwilioRestException
 
-config = configparser.ConfigParser()
-spinner = Halo(text='Connecting...', spinner='dots', text_color="green")
-welcome = "Welcome to the cchat app 🥳 \n" \
-          "Run cchat --help for options.\n"
-prompt = 'cchat > '
-client = None
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+from prompt_toolkit.application import Application
+from prompt_toolkit.document import Document
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.layout.containers import HSplit, Window
+from prompt_toolkit.layout.layout import Layout
+from prompt_toolkit.styles import Style
+from prompt_toolkit.widgets import SearchToolbar, TextArea
 
 
-class Connect:
+help_text = """
+Type any expression (e.g. "4 + 4") followed by enter to execute.
+Press Control-C to exit.
+"""
+
+
+class TwilioClient:
     def __init__(self):
         self.account_sid = os.getenv('ACCOUNT_SID')
         self.api_key = os.getenv('API_KEY')
@@ -28,73 +30,116 @@ class Connect:
         self.client = Client(self.account_sid, self.auth_token)
 
 
-@shell(prompt=prompt, intro=welcome)
-@click.pass_context
-def cli(ctx):
-    spinner.start()
-    ctx.obj = Connect()
-    global client
-    client = ctx.obj.client
-    spinner.succeed("Connected")
+def main():
 
+    class ChatServer(BaseHTTPRequestHandler,):
+        def _set_headers(self):
+            self.send_response(200)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
 
-@cli.command()
-@click.argument('identity')
-@click.pass_obj
-def login(ctx, identity):
-    """Creates a new user with the given `identity`.
-    The user `identity` and `sid` are written in a `.cchat.cfg` file for
-    reference.
-    Each new user automatically becomes a member of the general channel."""
-    try:
-        # create new user
-        user = client.chat.services(ctx.service_sid).users.create(
-            identity=identity)
-        config['user'] = {}
-        config['user']['identity'] = identity
-        config['user']['sid'] = user.sid
+        def _html(self, message):
+            """This just generates an HTML document that includes `message`
+            in the body. Override, or re-write this do do more interesting stuff.
+            """
+            content = f"<html><body><p>{message}</p></body></html>"
+            return content.encode("utf8")
 
-        # save user details in .cchat.cfg
-        with open('.cchat.cfg', 'w+') as configfile:
-            config.write(configfile)
-        spinner.info(f"New user created: {identity}")
+        def do_GET(self):
+            self._set_headers()
+            self.wfile.write(self._html(f"connected"))
+            accept(Application.current_buffer, "test")
 
-        # add user to general channel
+        def log_message(self, format, *args):
+            """prevent log messages from showing every time a client
+            connects """
+            return
+
+    def chat_server(server_class=HTTPServer,
+                    handler_class=ChatServer,
+                    addr="localhost",
+                    port=8000):
+        server_address = (addr, port)
+        httpd = server_class(server_address, handler_class)
+        httpd.serve_forever()
+
+    daemon = threading.Thread(name='daemon_server',
+                              target=chat_server)
+    # set as a daemon so it will be killed once the main thread is dead
+    daemon.setDaemon(True)
+    daemon.start()
+
+    # The layout.
+    search_field = SearchToolbar()  # For reverse search.
+
+    output_field = TextArea(text=help_text)
+    input_field = TextArea(
+        height=1,
+        prompt="> ",
+        multiline=False,
+        wrap_lines=False,
+        search_field=search_field,
+    )
+
+    container = HSplit(
+        [
+            output_field,
+            Window(height=1, char="-", style="class:line"),
+            input_field,
+            search_field,
+        ]
+    )
+
+    # Attach accept handler to the input field. We do this by assigning the
+    # handler to the `TextArea` that we created earlier. it is also possible to
+    # pass it to the constructor of `TextArea`.
+    # NOTE: It's better to assign an `accept_handler`, rather then adding a
+    #       custom ENTER key binding. This will automatically reset the input
+    #       field and add the strings to the history.
+    def accept(buff, message):
+        # Evaluate "calculator" expression.
         try:
-            channel = client.chat.services(ctx.service_sid).channels(
-                'general').fetch()
-            client.chat.services(ctx.service_sid).channels(
-                channel.sid).members.create(identity=identity)
-            spinner.info(f"{identity} added to {channel.unique_name}")
-        except TwilioRestException as err:
-            if err.status == 404:
-                # if general channel doesn't exist, create it and add the user
-                spinner.info("Creating general channel...")
-                channel = client.chat.services(ctx.service_sid) \
-                    .channels.create(
-                    friendly_name='General Channel',
-                    unique_name='general',
-                    created_by=identity
-                )
-                spinner.info(f"Channel '{channel.unique_name}' created")
-                client.chat.services(ctx.service_sid).channels(
-                    channel.sid).members.create(identity=identity)
-                spinner.info(f"{identity} added to {channel.unique_name}")
-            else:
-                spinner.fail(err.msg)
+            output = f"\nmessage ==> {message}\n"
+        except BaseException as e:
+            output = "\n\n{}".format(e)
+        new_text = output_field.text + output
 
-    except TwilioRestException as err:
-        if err.status == 409:  # user exists
-            spinner.info(f"Welcome back, {identity}")
-        else:
-            spinner.fail(err.msg)
+        # Add text to output buffer.
+        output_field.buffer.document = Document(
+            text=new_text, cursor_position=len(new_text)
+        )
 
-    # # Create access token with credentials
-    # token = AccessToken(account_sid, api_key, api_secret, identity=identity)
-    #
-    # # Create a Chat grant and add to token
-    # chat_grant = ChatGrant(service_sid=service_sid)
-    # token.add_grant(chat_grant)
-    #
-    # # Return token info as JSON
-    # print(token.to_jwt())
+    input_field.accept_handler = accept
+
+    # The key bindings.
+    kb = KeyBindings()
+
+    @kb.add("c-c")
+    @kb.add("c-q")
+    def _(event):
+        """ Pressing Ctrl-Q or Ctrl-C will exit the user interface. """
+        event.app.exit()
+
+    # Style.
+    style = Style(
+        [
+            ("output-field", "bg:#000044 #ffffff"),
+            ("input-field", "bg:#000000 #ffffff"),
+            ("line", "#004400"),
+        ]
+    )
+
+    # Run application.
+    application = Application(
+        layout=Layout(container, focused_element=input_field),
+        key_bindings=kb,
+        style=style,
+        mouse_support=True,
+        full_screen=True,
+    )
+
+    application.run()
+
+
+if __name__ == "__main__":
+    main()
