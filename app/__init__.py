@@ -2,8 +2,10 @@ import sys
 import subprocess
 import threading
 import commands
-from http.server import HTTPServer, BaseHTTPRequestHandler
 
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import parse_qs
+from datetime import datetime
 from prompt_toolkit.application import Application
 from prompt_toolkit.document import Document
 from prompt_toolkit.key_binding import KeyBindings
@@ -33,7 +35,23 @@ def main():
         def do_GET(self):
             self._set_headers()
             self.wfile.write(self._html(f"connected"))
-            chat_handler(Application.current_buffer, "test")
+            buffer = Application.current_buffer
+            params = parse_qs(self.path)
+            chat_handler(buffer, self.process_reponse(params))
+
+        def process_reponse(self, response):
+            try:
+                message_date = datetime.strptime(
+                    response['DateCreated'][0], '%Y-%m-%dT%H:%M:%S.%fZ'
+                )
+                message_date = message_date.strftime("%m-%d-%Y, %H:%M:%S")
+                message_from = response['From'][0] or response['ClientIdentity'][0]
+                message_body = response['Body'][0]
+                processed_response = f"\n[{message_date}]\n" \
+                                     f"{message_from} >>> {message_body}\n "
+                return f"{processed_response}"
+            except KeyError:
+                return "Someone messed things up.\n"
 
         def log_message(self, format, *args):
             """prevent log messages from showing every time a client
@@ -59,9 +77,9 @@ def main():
 
     output_field = TextArea(text=welcome_text)
 
-    def chat_handler(buffer, message=None):
+    def chat_handler(buffer, message):
         try:
-            output = "yey!"
+            output = message
         except BaseException as e:
             output = "\n\n{}".format(e)
         new_text = output_field.text + output
