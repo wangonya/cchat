@@ -1,11 +1,9 @@
-import os
 import sys
 import subprocess
 import threading
 import commands
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-from subprocess import CalledProcessError
 from prompt_toolkit.application import Application
 from prompt_toolkit.document import Document
 from prompt_toolkit.key_binding import KeyBindings
@@ -13,20 +11,9 @@ from prompt_toolkit.layout.containers import HSplit
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import SearchToolbar, TextArea, Frame
-from twilio.rest import Client
 
 welcome_text = "Welcome text \n\n"
 cmd_area_text = "Changes dynamically"
-
-
-class TwilioClient:
-    def __init__(self):
-        self.account_sid = os.getenv('ACCOUNT_SID')
-        self.api_key = os.getenv('API_KEY')
-        self.api_secret = os.getenv('API_SECRET')
-        self.service_sid = os.getenv('SERVICE_SID')
-        self.auth_token = os.getenv('AUTH_TOKEN')
-        self.client = Client(self.account_sid, self.auth_token)
 
 
 def main():
