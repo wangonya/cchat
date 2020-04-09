@@ -1,23 +1,17 @@
 import os
 import threading
-
-from twilio.rest import Client
-
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from prompt_toolkit.application import Application
 from prompt_toolkit.document import Document
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout.containers import HSplit, Window
+from prompt_toolkit.layout.containers import HSplit
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.styles import Style
-from prompt_toolkit.widgets import SearchToolbar, TextArea
+from prompt_toolkit.widgets import SearchToolbar, TextArea, Frame
+from twilio.rest import Client
 
-
-help_text = """
-Type any expression (e.g. "4 + 4") followed by enter to execute.
-Press Control-C to exit.
-"""
+help_text = "Press Control-C to exit"
 
 
 class TwilioClient:
@@ -48,7 +42,7 @@ def main():
         def do_GET(self):
             self._set_headers()
             self.wfile.write(self._html(f"connected"))
-            accept(Application.current_buffer, "test")
+            chat_handler(Application.current_buffer, "test")
 
         def log_message(self, format, *args):
             """prevent log messages from showing every time a client
@@ -73,33 +67,10 @@ def main():
     search_field = SearchToolbar()  # For reverse search.
 
     output_field = TextArea(text=help_text)
-    input_field = TextArea(
-        height=1,
-        prompt="> ",
-        multiline=False,
-        wrap_lines=False,
-        search_field=search_field,
-    )
 
-    container = HSplit(
-        [
-            output_field,
-            Window(height=1, char="-", style="class:line"),
-            input_field,
-            search_field,
-        ]
-    )
-
-    # Attach accept handler to the input field. We do this by assigning the
-    # handler to the `TextArea` that we created earlier. it is also possible to
-    # pass it to the constructor of `TextArea`.
-    # NOTE: It's better to assign an `accept_handler`, rather then adding a
-    #       custom ENTER key binding. This will automatically reset the input
-    #       field and add the strings to the history.
-    def accept(buff, message):
-        # Evaluate "calculator" expression.
+    def chat_handler(buffer, message=None):
         try:
-            output = f"\nmessage ==> {message}\n"
+            output = "yey!"
         except BaseException as e:
             output = "\n\n{}".format(e)
         new_text = output_field.text + output
@@ -109,13 +80,30 @@ def main():
             text=new_text, cursor_position=len(new_text)
         )
 
-    input_field.accept_handler = accept
+    input_field = TextArea(
+        height=1,
+        prompt='> ',
+        # prompt=cli,
+        multiline=False,
+        wrap_lines=False,
+        search_field=search_field
+    )
+
+    command_window_frame = Frame(input_field, title=help_text)
+
+    container = HSplit(
+        [
+            output_field,
+            command_window_frame,
+            search_field,
+        ]
+    )
 
     # The key bindings.
-    kb = KeyBindings()
+    bindings = KeyBindings()
 
-    @kb.add("c-c")
-    @kb.add("c-q")
+    @bindings.add("c-c")
+    @bindings.add("c-q")
     def _(event):
         """ Pressing Ctrl-Q or Ctrl-C will exit the user interface. """
         event.app.exit()
@@ -123,16 +111,29 @@ def main():
     # Style.
     style = Style(
         [
-            ("output-field", "bg:#000044 #ffffff"),
-            ("input-field", "bg:#000000 #ffffff"),
             ("line", "#004400"),
         ]
     )
 
+    # handle commands
+    def command_handler(buffer):
+        try:
+            output = "===> input_field.text"
+        except BaseException as e:
+            output = "\n\n{}".format(e)
+        new_text = output_field.text + output
+
+        # Add text to output buffer.
+        output_field.buffer.document = Document(
+            text=new_text, cursor_position=len(new_text)
+        )
+
+    input_field.accept_handler = command_handler
+
     # Run application.
     application = Application(
         layout=Layout(container, focused_element=input_field),
-        key_bindings=kb,
+        key_bindings=bindings,
         style=style,
         mouse_support=True,
         full_screen=True,
