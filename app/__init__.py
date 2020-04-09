@@ -1,7 +1,11 @@
 import os
+import sys
+import subprocess
 import threading
+import commands
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
+from subprocess import CalledProcessError
 from prompt_toolkit.application import Application
 from prompt_toolkit.document import Document
 from prompt_toolkit.key_binding import KeyBindings
@@ -11,7 +15,8 @@ from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import SearchToolbar, TextArea, Frame
 from twilio.rest import Client
 
-help_text = "Press Control-C to exit"
+welcome_text = "Welcome text \n\n"
+cmd_area_text = "Changes dynamically"
 
 
 class TwilioClient:
@@ -25,8 +30,7 @@ class TwilioClient:
 
 
 def main():
-
-    class ChatServer(BaseHTTPRequestHandler,):
+    class ChatServer(BaseHTTPRequestHandler, ):
         def _set_headers(self):
             self.send_response(200)
             self.send_header("Content-type", "text/html")
@@ -66,7 +70,7 @@ def main():
     # The layout.
     search_field = SearchToolbar()  # For reverse search.
 
-    output_field = TextArea(text=help_text)
+    output_field = TextArea(text=welcome_text)
 
     def chat_handler(buffer, message=None):
         try:
@@ -89,7 +93,7 @@ def main():
         search_field=search_field
     )
 
-    command_window_frame = Frame(input_field, title=help_text)
+    command_window_frame = Frame(input_field, title=cmd_area_text)
 
     container = HSplit(
         [
@@ -118,9 +122,16 @@ def main():
     # handle commands
     def command_handler(buffer):
         try:
-            output = "===> input_field.text"
+            cmd = subprocess.run([f"{sys.executable}", commands.path(),
+                                  f"{input_field.text}"], text=True,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE,)
+            if cmd.returncode != 0:
+                output = f"{cmd.stderr}\n"
+            else:
+                output = f"{cmd.stdout}\n"
         except BaseException as e:
-            output = "\n\n{}".format(e)
+            output = f"\n\n{e}"
         new_text = output_field.text + output
 
         # Add text to output buffer.
