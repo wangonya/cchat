@@ -1,21 +1,20 @@
-import sys
 import subprocess
+import sys
 import threading
-
-from prompt_toolkit.key_binding.bindings.focus import focus_next
-
-import commands
-
+from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs
-from datetime import datetime
-from prompt_toolkit.application import Application, get_app
+
+from prompt_toolkit.application import Application
 from prompt_toolkit.document import Document
 from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.key_binding.bindings.focus import focus_next
 from prompt_toolkit.layout.containers import HSplit, VSplit
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import SearchToolbar, TextArea, Frame, RadioList
+
+import commands
 
 welcome_text = "Welcome text \n\n"
 cmd_area_text = "type in command/message - ctrl-c to quit"
