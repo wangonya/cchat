@@ -1,9 +1,12 @@
+# this file not only handles commands but also various utils
+# commands are handled in `main()`
+# the other functions coming after `main()` are utils
+# TODO: refactor to separate command handling and utils
+
 import argparse
 import configparser
 import pathlib
 import os
-
-from datetime import datetime
 
 from twilio.rest import Client
 from twilio.jwt.access_token import AccessToken
@@ -21,9 +24,13 @@ class TwilioClient:
         self.client = Client(self.account_sid, self.auth_token)
 
 
+twilio = TwilioClient()
+client = twilio.client
+
+
 def main():
-    twilio = TwilioClient()
-    client = twilio.client
+    global twilio
+    global client
 
     config = configparser.ConfigParser()
 
@@ -34,7 +41,7 @@ def main():
     args = parser.parse_args()
 
     if args.user:
-        identity = args.user
+        identity = args.user.strip()
         try:
             # create new user
             user = client.chat.services(twilio.service_sid).users.create(
@@ -42,12 +49,12 @@ def main():
             config['user'] = {}
             config['user']['identity'] = identity
             config['user']['sid'] = user.sid
-    
+
             # save user details in .cchat.cfg
             with open('.cchat.cfg', 'w+') as configfile:
                 config.write(configfile)
             print(f"New user created: {identity}")
-    
+
             # add user to general channel
             try:
                 channel = client.chat.services(twilio.service_sid).channels(
@@ -73,13 +80,30 @@ def main():
                     print(err.msg)
         except TwilioRestException as err:
             if err.status == 409:  # user exists
-                print(f"Welcome back, {identity}")
+                print(f"Welcome back {identity}")
         # print(f"[{get_date_time()}] {args.user}")
 
 
-def get_date_time():
-    now = datetime.now()
-    return now.strftime("%m/%d/%Y, %H:%M:%S")
+def get_channels_users():
+    channels_users = []
+
+    # fetch service channels
+    channels = client.chat.services(twilio.service_sid).channels.list()
+    for channel in channels:
+        channels_users.append((
+            channel.unique_name,
+            channel.unique_name,
+        ))
+
+    # fetch service users
+    users = client.chat.services(twilio.service_sid).users.list()
+    for user in users:
+        channels_users.append((
+            user.identity,
+            user.identity
+        ))
+
+    return channels_users
 
 
 def path():

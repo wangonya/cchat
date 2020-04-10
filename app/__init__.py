@@ -15,7 +15,7 @@ from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import SearchToolbar, TextArea, Frame, RadioList
 
 welcome_text = "Welcome text \n\n"
-cmd_area_text = "Changes dynamically"
+cmd_area_text = "type in command/message - ctrl-c to quit"
 focus_next_ = None
 
 
@@ -91,21 +91,7 @@ def main():
             text=new_text, cursor_position=len(new_text),
         )
 
-    values=[
-        ("red", "Red"),
-        ("green", "Green"),
-        ("blue", "Blue"),
-        ("orange", "Orange"),
-        ("red", "Red"),
-        ("green", "Green"),
-        ("blue", "Blue"),
-        ("orange", "Orange"),
-        ("red", "Red"),
-        ("green", "Green"),
-        ("blue", "Blue"),
-        ("orange", "Orange"),
-    ]
-    channels_window = RadioList(values)
+    channels_window = RadioList(commands.get_channels_users())
     channels_frame = Frame(channels_window, title="#channels & @users",
                            width=25)
 
