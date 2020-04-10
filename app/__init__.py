@@ -95,9 +95,9 @@ def main():
             text=new_text, cursor_position=len(new_text),
         )
 
-    channels_window = RadioList(commands.get_channels_users())
-    channels_frame = Frame(channels_window, title="#channels & @users",
-                           width=25)
+    channels_window = RadioList(commands.get_channels())
+    channels_frame = Frame(channels_window, title="channels",
+                           width=23)
 
     upper_container = VSplit([channels_frame, output_window])
 

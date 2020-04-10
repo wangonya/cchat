@@ -84,7 +84,7 @@ def main():
         # print(f"[{get_date_time()}] {args.user}")
 
 
-def get_channels_users():
+def get_channels():
     channels_users = []
 
     # fetch service channels
@@ -93,14 +93,6 @@ def get_channels_users():
         channels_users.append((
             channel.unique_name,
             channel.unique_name,
-        ))
-
-    # fetch service users
-    users = client.chat.services(twilio.service_sid).users.list()
-    for user in users:
-        channels_users.append((
-            user.identity,
-            user.identity
         ))
 
     return channels_users
