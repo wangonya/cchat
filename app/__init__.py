@@ -7,6 +7,8 @@ from urllib.parse import parse_qs
 
 from prompt_toolkit.application import Application
 from prompt_toolkit.document import Document
+from prompt_toolkit.enums import EditingMode
+from prompt_toolkit.filters import Condition
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.bindings.focus import focus_next
 from prompt_toolkit.layout.containers import HSplit, VSplit
@@ -18,6 +20,7 @@ import commands
 
 welcome_text = "Welcome text \n\n"
 cmd_area_text = "type in command/message - ctrl-c to quit"
+command_mode = False
 
 
 def main():
@@ -130,6 +133,15 @@ def main():
     def tab_(event):
         focus_next(event)
 
+    @bindings.add('escape')
+    def cmd_mode(event):
+        global command_mode
+        command_mode = not command_mode
+        if command_mode:
+            command_window_frame.title = 'command mode | esc to enter insert mode'
+        else:
+            command_window_frame.title = 'insert mode | esc to enter command mode'
+
     # Style.
     style = Style(
         [
@@ -139,15 +151,19 @@ def main():
 
     # handle commands
     def command_handler(buffer):
+        global command_mode
         try:
-            cmd = subprocess.run([f"{sys.executable}", commands.path(),
-                                  f"{input_field.text}"], text=True,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE,)
-            if cmd.returncode != 0:
-                output = f"{cmd.stderr}\n"
+            if command_mode:
+                cmd = subprocess.run([f"{sys.executable}", commands.path(),
+                                      f"{input_field.text}"], text=True,
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE,)
+                if cmd.returncode != 0:
+                    output = f"{cmd.stderr}\n"
+                else:
+                    output = f"{cmd.stdout}\n"
             else:
-                output = f"{cmd.stdout}\n"
+                output = commands.send_message(input_field.text)
         except BaseException as e:
             output = f"\n\n{e}"
         new_text = output_field.text + output
@@ -166,6 +182,7 @@ def main():
         style=style,
         mouse_support=True,
         full_screen=True,
+        # editing_mode=EditingMode.VI
     )
 
     application.run()

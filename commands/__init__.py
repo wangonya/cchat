@@ -106,5 +106,9 @@ def get_channels_users():
     return channels_users
 
 
+def send_message(message):
+    return f"msg sent! ==> {message}"
+
+
 def path():
     return pathlib.Path(__file__).parent.absolute()
