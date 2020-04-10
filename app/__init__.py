@@ -1,6 +1,9 @@
 import sys
 import subprocess
 import threading
+
+from prompt_toolkit.key_binding.bindings.focus import focus_next
+
 import commands
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -16,7 +19,6 @@ from prompt_toolkit.widgets import SearchToolbar, TextArea, Frame, RadioList
 
 welcome_text = "Welcome text \n\n"
 cmd_area_text = "type in command/message - ctrl-c to quit"
-focus_next_ = None
 
 
 def main():
@@ -76,7 +78,7 @@ def main():
     # The layout.
     search_field = SearchToolbar()  # For reverse search.
 
-    output_field = TextArea()
+    output_field = TextArea(focusable=False)
     output_window = Frame(output_field, title="messages")
 
     def chat_handler(buffer, message):
@@ -103,7 +105,7 @@ def main():
         # prompt=cli,
         multiline=False,
         wrap_lines=False,
-        search_field=search_field
+        search_field=search_field,
     )
 
     command_window_frame = Frame(input_field, title=cmd_area_text)
@@ -127,13 +129,7 @@ def main():
 
     @bindings.add('tab')
     def tab_(event):
-        global focus_next_
-        if focus_next_ == 'channels_window':
-            Layout.focus_last(get_app().layout)
-            focus_next_ = None
-        else:
-            Layout.focus_next(get_app().layout)
-            focus_next_ = 'channels_window'
+        focus_next(event)
 
     # Style.
     style = Style(
