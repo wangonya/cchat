@@ -6,16 +6,17 @@ import commands
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs
 from datetime import datetime
-from prompt_toolkit.application import Application
+from prompt_toolkit.application import Application, get_app
 from prompt_toolkit.document import Document
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout.containers import HSplit
+from prompt_toolkit.layout.containers import HSplit, VSplit
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.styles import Style
-from prompt_toolkit.widgets import SearchToolbar, TextArea, Frame
+from prompt_toolkit.widgets import SearchToolbar, TextArea, Frame, RadioList
 
 welcome_text = "Welcome text \n\n"
 cmd_area_text = "Changes dynamically"
+focus_next_ = None
 
 
 def main():
@@ -45,7 +46,7 @@ def main():
                     response['DateCreated'][0], '%Y-%m-%dT%H:%M:%S.%fZ'
                 )
                 message_date = message_date.strftime("%m-%d-%Y, %H:%M:%S")
-                message_from = response['From'][0] or response['ClientIdentity'][0]
+                message_from = response['From'][0]
                 message_body = response['Body'][0]
                 processed_response = f"\n[{message_date}]\n" \
                                      f"{message_from} >>> {message_body}\n "
@@ -75,7 +76,8 @@ def main():
     # The layout.
     search_field = SearchToolbar()  # For reverse search.
 
-    output_field = TextArea(text=welcome_text)
+    output_field = TextArea()
+    output_window = Frame(output_field, title="messages")
 
     def chat_handler(buffer, message):
         try:
@@ -86,8 +88,28 @@ def main():
 
         # Add text to output buffer.
         output_field.buffer.document = Document(
-            text=new_text, cursor_position=len(new_text)
+            text=new_text, cursor_position=len(new_text),
         )
+
+    values=[
+        ("red", "Red"),
+        ("green", "Green"),
+        ("blue", "Blue"),
+        ("orange", "Orange"),
+        ("red", "Red"),
+        ("green", "Green"),
+        ("blue", "Blue"),
+        ("orange", "Orange"),
+        ("red", "Red"),
+        ("green", "Green"),
+        ("blue", "Blue"),
+        ("orange", "Orange"),
+    ]
+    channels_window = RadioList(values)
+    channels_frame = Frame(channels_window, title="#channels & @users",
+                           width=25)
+
+    upper_container = VSplit([channels_frame, output_window])
 
     input_field = TextArea(
         height=1,
@@ -102,7 +124,7 @@ def main():
 
     container = HSplit(
         [
-            output_field,
+            upper_container,
             command_window_frame,
             search_field,
         ]
@@ -116,6 +138,16 @@ def main():
     def _(event):
         """ Pressing Ctrl-Q or Ctrl-C will exit the user interface. """
         event.app.exit()
+
+    @bindings.add('tab')
+    def tab_(event):
+        global focus_next_
+        if focus_next_ == 'channels_window':
+            Layout.focus_last(get_app().layout)
+            focus_next_ = None
+        else:
+            Layout.focus_next(get_app().layout)
+            focus_next_ = 'channels_window'
 
     # Style.
     style = Style(
