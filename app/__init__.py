@@ -4,14 +4,20 @@ import threading
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs
-from halo import Halo
 
+from halo import Halo
+from prompt_toolkit import ANSI
 from prompt_toolkit.application import Application
+from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.document import Document
+from prompt_toolkit.formatted_text import to_formatted_text, \
+    fragment_list_to_text
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.key_binding.bindings.focus import focus_next
-from prompt_toolkit.layout.containers import HSplit, VSplit
+from prompt_toolkit.layout import BufferControl
+from prompt_toolkit.layout.containers import HSplit, VSplit, Window
 from prompt_toolkit.layout.layout import Layout
+from prompt_toolkit.layout.processors import Processor, Transformation
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import SearchToolbar, TextArea, Frame, RadioList
 
@@ -67,8 +73,9 @@ def process_response(response):
         message_time = message_date.strftime("%H:%M")
         message_from = response['From'][0]
         message_body = response['Body'][0]
-        processed_response = f"[{message_time}] " \
-                             f"@{message_from} >> {message_body}\n"
+        processed_response = f"{message_time} " \
+                             f"\033[1m{message_from}\033[0m  " \
+                             f"{message_body}\n"
         return f"{processed_response}"
     except KeyError:
         return "Someone messed things up.\n"
@@ -85,20 +92,31 @@ spinner.start("rendering interface")
 # The layout.
 search_field = SearchToolbar()  # For reverse search.
 
-output_field = TextArea(focusable=False, text="\n")
-output_window = Frame(output_field, title="messages")
+output_field = Buffer()
+
+
+class FormatText(Processor):
+    def apply_transformation(self, input_):
+        fragments = to_formatted_text(
+            ANSI(fragment_list_to_text(input_.fragments)))
+        return Transformation(fragments)
+
+
+output_window = Frame(Window(BufferControl(
+    buffer=output_field,
+    focusable=False,
+    input_processors=[FormatText()])), title="messages")
 
 
 def chat_handler(buffer, message):
     try:
-        output = message
+        output = output_field.text + message
     except BaseException as e:
         output = "\n\n{}".format(e)
-    new_text = output_field.text + output
 
     # Add text to output buffer.
-    output_field.buffer.document = Document(
-        text=new_text, cursor_position=len(new_text),
+    output_field.document = Document(
+        text=output, cursor_position=len(output),
     )
 
 
@@ -174,20 +192,17 @@ def command_handler(buffer):
             else:
                 output = f"{cmd.stdout}\n"
             new_text = output_field.text + output
-            # Add text to output buffer.
-            output_field.buffer.document = Document(
-                text=new_text, cursor_position=len(new_text)
+            output_field.document = Document(
+                text=new_text, cursor_position=len(new_text),
             )
         else:
             utils.send_message(channels_window.current_value,
-                                  input_field.text)
+                               input_field.text)
     except BaseException as e:
         output = f"\n\n{e}"
         new_text = output_field.text + output
-
-        # Add text to output buffer.
-        output_field.buffer.document = Document(
-            text=new_text, cursor_position=len(new_text)
+        output_field.document = Document(
+            text=new_text, cursor_position=len(new_text),
         )
 
 
