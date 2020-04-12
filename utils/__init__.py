@@ -1,18 +1,10 @@
-# this file not only handles commands but also various utils
-# commands are handled in `main()`
-# the other functions coming after `main()` are utils
-# TODO: refactor to separate command handling and utils
-
 import argparse
 import configparser
-import json
 import pathlib
 import os
 import requests
 
 from twilio.rest import Client
-from twilio.jwt.access_token import AccessToken
-from twilio.jwt.access_token.grants import ChatGrant
 from twilio.base.exceptions import TwilioRestException
 
 
@@ -33,9 +25,6 @@ config['user'] = {}
 
 
 def main():
-    global twilio
-    global client
-
     # commands
     parser = argparse.ArgumentParser()
     parser.add_argument('-u', dest='user', type=str,
