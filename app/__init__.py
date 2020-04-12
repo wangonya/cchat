@@ -67,18 +67,23 @@ def chat_server(server_class=HTTPServer,
 
 def process_response(response):
     try:
-        message_date = datetime.strptime(
-            response['DateCreated'][0], '%Y-%m-%dT%H:%M:%S.%fZ'
-        )
-        message_time = message_date.strftime("%H:%M")
-        message_from = response['From'][0]
-        message_body = response['Body'][0]
-        processed_response = f"{message_time} " \
-                             f"\033[1m{message_from}\033[0m  " \
-                             f"{message_body}\n"
+        if response.get('/?EventType') and response['/?EventType'][0] in (
+                'onMemberAdded', 'onMemberRemoved'):
+            processed_response = f"\033[3m{response['Identity'][0]} " \
+                                 f"{response['Reason'][0].lower()}\033[0m \n"
+        else:
+            message_date = datetime.strptime(
+                response['DateCreated'][0], '%Y-%m-%dT%H:%M:%S.%fZ'
+            )
+            message_time = message_date.strftime("%H:%M")
+            message_from = response['From'][0]
+            message_body = response['Body'][0]
+            processed_response = f"{message_time} " \
+                                 f"\033[1m{message_from}\033[0m  " \
+                                 f"{message_body}\n"
         return f"{processed_response}"
-    except KeyError:
-        return "Someone messed things up.\n"
+    except KeyError as e:
+        return f"Failed to parse response: {e}\n"
 
 
 daemon = threading.Thread(name='daemon_server',
