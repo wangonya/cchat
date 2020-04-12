@@ -30,18 +30,18 @@ def main():
             self.send_header("Content-type", "text/html")
             self.end_headers()
 
-        def _html(self, message):
-            """This just generates an HTML document that includes `message`
-            in the body. Override, or re-write this do do more interesting stuff.
+        def _html(self, params):
+            """Shows the url params on the browser in html.
+            Nothing useful. Just for debugging
             """
-            content = f"<html><body><p>{message}</p></body></html>"
+            content = f"<html><body><p>{params}</p></body></html>"
             return content.encode("utf8")
 
         def do_GET(self):
             self._set_headers()
-            self.wfile.write(self._html(f"connected"))
             buffer = Application.current_buffer
             params = parse_qs(self.path)
+            self.wfile.write(self._html(params))
             chat_handler(buffer, self.process_reponse(params))
 
         def process_reponse(self, response):
@@ -49,11 +49,11 @@ def main():
                 message_date = datetime.strptime(
                     response['DateCreated'][0], '%Y-%m-%dT%H:%M:%S.%fZ'
                 )
-                message_date = message_date.strftime("%m-%d-%Y, %H:%M:%S")
+                message_time = message_date.strftime("%H:%M")
                 message_from = response['From'][0]
                 message_body = response['Body'][0]
-                processed_response = f"\n[{message_date}]\n" \
-                                     f"{message_from} >>> {message_body}\n "
+                processed_response = f"[{message_time}] " \
+                                     f"@{message_from} >> {message_body}\n"
                 return f"{processed_response}"
             except KeyError:
                 return "Someone messed things up.\n"
@@ -157,21 +157,27 @@ def main():
                 cmd = subprocess.run([f"{sys.executable}", commands.path(),
                                       f"{input_field.text}"], text=True,
                                      stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE,)
+                                     stderr=subprocess.PIPE, )
                 if cmd.returncode != 0:
                     output = f"{cmd.stderr}\n"
                 else:
                     output = f"{cmd.stdout}\n"
+                new_text = output_field.text + output
+                # Add text to output buffer.
+                output_field.buffer.document = Document(
+                    text=new_text, cursor_position=len(new_text)
+                )
             else:
-                output = commands.send_message(input_field.text)
+                commands.send_message(channels_window.current_value,
+                                      input_field.text)
         except BaseException as e:
             output = f"\n\n{e}"
-        new_text = output_field.text + output
+            new_text = output_field.text + output
 
-        # Add text to output buffer.
-        output_field.buffer.document = Document(
-            text=new_text, cursor_position=len(new_text)
-        )
+            # Add text to output buffer.
+            output_field.buffer.document = Document(
+                text=new_text, cursor_position=len(new_text)
+            )
 
     input_field.accept_handler = command_handler
 
@@ -182,7 +188,8 @@ def main():
         style=style,
         mouse_support=True,
         full_screen=True,
-        # editing_mode=EditingMode.VI
+        # editing_mode=EditingMode.VI,
+        erase_when_done=True,
     )
 
     application.run()

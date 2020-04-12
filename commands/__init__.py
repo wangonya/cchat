@@ -5,8 +5,10 @@
 
 import argparse
 import configparser
+import json
 import pathlib
 import os
+import requests
 
 from twilio.rest import Client
 from twilio.jwt.access_token import AccessToken
@@ -26,13 +28,13 @@ class TwilioClient:
 
 twilio = TwilioClient()
 client = twilio.client
+config = configparser.ConfigParser()
+config['user'] = {}
 
 
 def main():
     global twilio
     global client
-
-    config = configparser.ConfigParser()
 
     # commands
     parser = argparse.ArgumentParser()
@@ -46,7 +48,6 @@ def main():
             # create new user
             user = client.chat.services(twilio.service_sid).users.create(
                 identity=identity)
-            config['user'] = {}
             config['user']['identity'] = identity
             config['user']['sid'] = user.sid
 
@@ -81,7 +82,6 @@ def main():
         except TwilioRestException as err:
             if err.status == 409:  # user exists
                 print(f"Welcome back {identity}")
-        # print(f"[{get_date_time()}] {args.user}")
 
 
 def get_channels():
@@ -98,8 +98,22 @@ def get_channels():
     return channels_users
 
 
-def send_message(message):
-    return f"msg sent! ==> {message}"
+def send_message(channel, message):
+    config.read('.cchat.cfg')
+    # creating a message with the client won't trigger a webhook
+    # so we'll create via a direct POST request to the api
+    url = f"https://chat.twilio.com/v2/Services/{twilio.service_sid}/Channels/" \
+          f"{channel}/Messages"
+    data = {
+        "From": config['user']['identity'],
+        "Body": message,
+    }
+    headers = {
+        'X-Twilio-Webhook-Enabled': 'true',
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    requests.post(url, data, headers=headers,
+                  auth=(twilio.account_sid, twilio.auth_token))
 
 
 def path():
