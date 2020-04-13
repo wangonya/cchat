@@ -105,7 +105,9 @@ class FormatText(Processor):
 output_window = Frame(Window(BufferControl(
     buffer=output_field,
     focusable=False,
-    input_processors=[FormatText()])), title="messages")
+    input_processors=[FormatText()]),
+    wrap_lines=True),
+    title="messages")
 
 
 def chat_handler(buffer, message):
