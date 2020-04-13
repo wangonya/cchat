@@ -1,6 +1,8 @@
 """twilio stuff, command handling and other utils"""
 
 import os
+import sys
+
 import requests
 import configparser
 
@@ -14,6 +16,12 @@ api_key = os.getenv('API_KEY')
 api_secret = os.getenv('API_SECRET')
 service_sid = os.getenv('SERVICE_SID')
 auth_token = os.getenv('AUTH_TOKEN')
+
+if not any((account_sid, api_key, api_secret, service_sid, auth_token)):
+    print("Error: all required credentials not set. Please check your .env "
+          "file")
+    sys.exit()
+
 client = Client(account_sid, auth_token)
 
 
