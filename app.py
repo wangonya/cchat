@@ -1,12 +1,9 @@
-import subprocess
-import sys
 import threading
-
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs
-from halo import Halo
 
+from halo import Halo
 from prompt_toolkit import ANSI
 from prompt_toolkit.application import Application
 from prompt_toolkit.buffer import Buffer
