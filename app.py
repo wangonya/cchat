@@ -1,11 +1,12 @@
 import subprocess
 import sys
 import threading
+
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs
-
 from halo import Halo
+
 from prompt_toolkit import ANSI
 from prompt_toolkit.application import Application
 from prompt_toolkit.buffer import Buffer
@@ -27,7 +28,6 @@ spinner = Halo(spinner="dots", text="starting ...")
 spinner.start()
 
 cmd_area_text = "type in command/message - ctrl-c to quit"
-command_mode = False
 
 
 class ChatServer(BaseHTTPRequestHandler, ):
@@ -84,19 +84,14 @@ def process_response(response):
         return f"{processed_response}"
     except KeyError as e:
         return f"Failed to parse response: {e}\n"
+    except Exception as e:
+        return f"An error occurred: {e}"
 
 
-daemon = threading.Thread(name='daemon_server',
-                          target=chat_server)
-daemon.setDaemon(True)  # killed once the main thread is dead
-daemon.start()
-spinner.succeed("background server running on port 8000 (killed when app "
-                "exits)")
+spinner.start("rendering interface ...")
 
-spinner.start("rendering interface")
-# The layout.
+# layout.
 search_field = SearchToolbar()  # For reverse search.
-
 output_field = Buffer()
 
 
@@ -165,16 +160,6 @@ def tab_(event):
     focus_next(event)
 
 
-@bindings.add('escape')
-def cmd_mode(event):
-    global command_mode
-    command_mode = not command_mode
-    if command_mode:
-        command_window_frame.title = 'command mode | esc to enter insert mode'
-    else:
-        command_window_frame.title = 'insert mode | esc to enter command mode'
-
-
 # Style.
 style = Style(
     [
@@ -185,22 +170,16 @@ style = Style(
 
 # handle commands
 def command_handler(buffer):
-    global command_mode
+    # input starting with '/' is treated as a command
     try:
-        if command_mode:
-            cmd = subprocess.run([f"{sys.executable}", utils.path(),
-                                  f"{input_field.text}"], text=True,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE, )
-            if cmd.returncode != 0:
-                output = f"{cmd.stderr}\n"
-            else:
-                output = f"{cmd.stdout}\n"
+        if input_field.text.startswith('/'):  # command
+            cmd_response = utils.command_handler(input_field.text)
+            output = f"{cmd_response}\n"
             new_text = output_field.text + output
             output_field.document = Document(
                 text=new_text, cursor_position=len(new_text),
             )
-        else:
+        else:  # message
             utils.send_message(channels_window.current_value,
                                input_field.text)
     except BaseException as e:
@@ -214,7 +193,7 @@ def command_handler(buffer):
 input_field.accept_handler = command_handler
 spinner.succeed("interface rendered")
 
-spinner.start("starting app")
+spinner.start("starting app ...")
 # Run application.
 application = Application(
     layout=Layout(container, focused_element=input_field),
@@ -228,6 +207,12 @@ spinner.succeed("all good")
 
 
 def main():
+    # start server
+    daemon = threading.Thread(name='daemon_server',
+                              target=chat_server)
+    daemon.setDaemon(True)  # killed once the main thread is dead
+    daemon.start()
+    # start app
     application.run()
 
 
