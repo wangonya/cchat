@@ -9,14 +9,10 @@ from halo import Halo
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
 
-from faker import Faker
-
 config = configparser.ConfigParser()
 config.read('.cchat.cfg')
 
-fake = Faker()
-
-spinner = Halo(spinner="dots", text="checking credentials ... ")
+spinner = Halo(spinner="dots", text="checking twilio credentials ... ")
 
 account_sid = os.getenv('ACCOUNT_SID')
 api_key = os.getenv('API_KEY')
@@ -29,28 +25,38 @@ ansi_bold = '\033[1m'
 ansi_italics = '\033[3m'
 ansi_end = '\033[0m'
 
-
 if not any((account_sid, api_key, api_secret, service_sid, auth_token)):
-    spinner.fail("One or more Twilio credentials not set. Please check your "
-               ".env "
-          "file")
+    spinner.fail("One or more Twilio credentials not set. \
+                 Please check your .env file")
     sys.exit()
 else:
     spinner.succeed("twilio credentials set")
 
 client = Client(account_sid, auth_token)
 
+spinner.start("checking user credentials ...")
 try:
     identity = config['user']['identity']
     spinner.succeed(f"logged in as {identity}")
 except (KeyError, TypeError):
+    # get current users to check for duplicate username
+    identities = client.chat.services(service_sid).users.list()
     # create new user
-    identity = fake.user_name()
+    spinner.warn("new user")
+    identity = input("enter username for registration: ").strip()
+    while not identity:
+        spinner.warn("a username is required for registration")
+        identity = input("enter username for registration: ").strip()
+        while identity in [id_.identity for id_ in identities]:
+            spinner.warn("that username is already taken")
+            identity = input(
+                "enter a different username for registration: ").strip()
     spinner.start("creating new user ...")
     user = client.chat.services(service_sid).users.create(
-        identity=identity)
+        identity=identity, friendly_name=identity)
     config['user'] = {}
     config['user']['identity'] = identity
+    config['user']['friendly_name'] = identity
     config['user']['sid'] = user.sid
 
     # save user details in .cchat.cfg
@@ -118,55 +124,17 @@ def command_handler(cmd_string):
     help_text = """
     cchat commands
     """
-    if cmd_string.startswith('/login'):
+    if cmd_string.startswith('/nick'):
         if len(cmd_string.split()) < 2:
-            return "Error: USER  argument not provided"
+            return "Error: NAME  argument not provided"
         if len(cmd_string.split()) > 2:
             return "Error: too many arguments supplied for command"
-        identity = cmd_string.split()[1].strip()
-        # return login(identity)
+        name = cmd_string.split()[1].strip()
+        # return nick(name)
     elif cmd_string.startswith('/cleanup'):
         if len(cmd_string.split()) > 1:
             return "Error: too many arguments supplied for command"
         return cleanup()
-
-
-# def login(identity):
-#     try:
-#         # create new user
-#         user = client.chat.services(service_sid).users.create(
-#             identity=identity)
-#         config['user'] = {}
-#         config['user']['identity'] = identity
-#         config['user']['sid'] = user.sid
-#
-#         # save user details in .cchat.cfg
-#         with open('.cchat.cfg', 'w+') as configfile:
-#             config.write(configfile)
-#
-#         # add user to general channel
-#         try:
-#             channel = client.chat.services(service_sid).channels(
-#                 'general').fetch()
-#             client.chat.services(service_sid).channels(
-#                 channel.sid).members.create(identity=identity)
-#         except TwilioRestException as err:
-#             if err.status == 404:
-#                 # if !general channel, create it and add the user
-#                 channel = client.chat.services(service_sid).channels.create(
-#                     friendly_name='General Channel',
-#                     unique_name='general',
-#                     created_by=identity
-#                 )
-#                 client.chat.services(service_sid).channels(
-#                     channel.sid).members.create(identity=identity)
-#             else:
-#                 return err.msg
-#         return f"Welcome {identity}. You've been added to #general"
-#
-#     except TwilioRestException as err:
-#         if err.status == 409:  # user exists
-#             return f"Welcome back {identity}"
 
 
 def cleanup():
