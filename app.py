@@ -1,11 +1,12 @@
+import configparser
 import threading
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs
 
 from halo import Halo
-from prompt_toolkit import ANSI
-from prompt_toolkit.application import Application
+from prompt_toolkit import ANSI, prompt
+from prompt_toolkit.application import Application, run_in_terminal
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import to_formatted_text, \
@@ -20,11 +21,18 @@ from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import SearchToolbar, TextArea, Frame, RadioList
 
 import utils
+from utils import ansi_red, ansi_bold, ansi_italics, ansi_end
 
-spinner = Halo(spinner="dots", text="starting ...")
+config = configparser.ConfigParser()
+config.read('.cchat.cfg')
+identity = config['user']['identity']
+
+spinner = Halo(spinner="dots", text="starting app ...")
 spinner.start()
 
 cmd_area_text = "type in command/message - ctrl-c to quit"
+output_field_text = f"You're logged in as {ansi_bold}{identity}{ansi_end}.\n" \
+    "Run /nick NAME to update your username.\n\n"
 
 
 class ChatServer(BaseHTTPRequestHandler, ):
@@ -90,6 +98,7 @@ spinner.start("rendering interface ...")
 # layout.
 search_field = SearchToolbar()  # For reverse search.
 output_field = Buffer()
+output_field.text = output_field_text
 
 
 class FormatText(Processor):
