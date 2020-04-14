@@ -5,8 +5,8 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs
 
 from halo import Halo
-from prompt_toolkit import ANSI, prompt
-from prompt_toolkit.application import Application, run_in_terminal
+from prompt_toolkit import ANSI
+from prompt_toolkit.application import Application
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import to_formatted_text, \
@@ -21,7 +21,7 @@ from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import SearchToolbar, TextArea, Frame, RadioList
 
 import utils
-from utils import ansi_red, ansi_bold, ansi_italics, ansi_end
+from utils import ansi_bold, ansi_italics, ansi_end
 
 config = configparser.ConfigParser()
 config.read('.cchat.cfg')
@@ -31,8 +31,6 @@ spinner = Halo(spinner="dots", text="starting app ...")
 spinner.start()
 
 cmd_area_text = "type in command/message - ctrl-c to quit"
-output_field_text = f"You're logged in as {ansi_bold}{identity}{ansi_end}.\n" \
-    "Run /nick NAME to update your username.\n\n"
 
 
 class ChatServer(BaseHTTPRequestHandler, ):
@@ -56,8 +54,7 @@ class ChatServer(BaseHTTPRequestHandler, ):
         chat_handler(buffer, process_response(params))
 
     def log_message(self, format, *args):
-        """prevent log messages from showing every time a client
-            connects """
+        """suppress logs"""
         return
 
 
@@ -73,9 +70,9 @@ def chat_server(server_class=HTTPServer,
 def process_response(response):
     try:
         if response.get('/?EventType') and response['/?EventType'][0] in (
-                'onMemberAdded', 'onMemberRemoved'):
-            processed_response = f"\033[3m{response['Identity'][0]} " \
-                                 f"{response['Reason'][0].lower()}\033[0m \n"
+                'onMemberAdded', 'onMemberRemoved', ):
+            processed_response = f"{ansi_italics}{response['Identity'][0]} " \
+                                 f"{response['Reason'][0].lower()}{ansi_end}\n"
         else:
             message_date = datetime.strptime(
                 response['DateCreated'][0], '%Y-%m-%dT%H:%M:%S.%fZ'
@@ -84,7 +81,7 @@ def process_response(response):
             message_from = response['From'][0]
             message_body = response['Body'][0]
             processed_response = f"{message_time} " \
-                                 f"\033[1m{message_from}\033[0m  " \
+                                 f"{ansi_bold}{message_from}{ansi_end}  " \
                                  f"{message_body}\n"
         return f"{processed_response}"
     except KeyError as e:
@@ -98,7 +95,6 @@ spinner.start("rendering interface ...")
 # layout.
 search_field = SearchToolbar()  # For reverse search.
 output_field = Buffer()
-output_field.text = output_field_text
 
 
 class FormatText(Processor):
