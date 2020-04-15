@@ -95,6 +95,7 @@ spinner.start("rendering interface ...")
 # layout.
 search_field = SearchToolbar()  # For reverse search.
 output_field = Buffer()
+output_field.text = f"logged in as {ansi_bold}{identity}{ansi_end}\n\n"
 
 
 class FormatText(Processor):
@@ -125,6 +126,7 @@ def chat_handler(buffer, message):
 
 
 channels_window = RadioList(utils.get_channels())
+channels_window.current_value = 'general'
 channels_frame = Frame(channels_window, title="channels",
                        width=23)
 
@@ -183,6 +185,11 @@ def command_handler(buffer):
             output_field.document = Document(
                 text=new_text, cursor_position=len(new_text),
             )
+            if cmd_response.find('Error') == -1 and \
+                    input_field.text.find('channel') != -1:
+                # channel command - refresh channel list
+                channels_window.values = utils.get_channels()
+                channels_window.current_value = input_field.text.split()[1]
         else:  # message
             utils.send_message(channels_window.current_value,
                                input_field.text)

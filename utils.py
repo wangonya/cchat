@@ -74,7 +74,7 @@ except (KeyError, TypeError):
         if err.status == 404:
             # if !general channel, create it and add the user
             client.chat.services(service_sid).channels.create(
-                friendly_name='General Channel',
+                friendly_name='General Chat Channel',
                 unique_name='general',
                 created_by=identity
             )
@@ -124,17 +124,29 @@ def command_handler(cmd_string):
     help_text = """
     cchat commands
     """
-    if cmd_string.startswith('/nick'):
+    if cmd_string.startswith('/addchannel'):
+        args = cmd_string.split()
         if len(cmd_string.split()) < 2:
-            return "Error: NAME  argument not provided"
-        if len(cmd_string.split()) > 2:
+            return "Error: CHANNEL_NAME argument is required"
+        elif len(cmd_string.split()) > 2:
             return "Error: too many arguments supplied for command"
-        name = cmd_string.split()[1].strip()
-        # return nick(name)
+        name = args[1]
+        return add_channel(name)
     elif cmd_string.startswith('/cleanup'):
         if len(cmd_string.split()) > 1:
             return "Error: too many arguments supplied for command"
         return cleanup()
+
+
+def add_channel(name):
+    try:
+        client.chat.services(service_sid).channels.create(
+            unique_name=name, created_by=identity)
+        client.chat.services(service_sid).channels(name).members.create(
+            identity=identity)
+        return f"\n{ansi_italics}{ansi_bold}#{name} created{ansi_end}\n"
+    except TwilioRestException as e:
+        return f"\n{ansi_red}{e.msg}{ansi_end}\n"
 
 
 def cleanup():
