@@ -70,7 +70,7 @@ def chat_server(server_class=HTTPServer,
 def process_response(response):
     try:
         if response.get('/?EventType') and response['/?EventType'][0] in (
-                'onMemberAdded', 'onMemberRemoved', ):
+                'onMemberAdded', 'onMemberRemoved',):
             processed_response = f"{ansi_italics}{response['Identity'][0]} " \
                                  f"{response['Reason'][0].lower()}{ansi_end}\n"
         else:
@@ -189,7 +189,12 @@ def command_handler(buffer):
                     input_field.text.find('channel') != -1:
                 # channel command - refresh channel list
                 channels_window.values = utils.get_channels()
-                channels_window.current_value = input_field.text.split()[1]
+                if input_field.text.find('+') != -1:
+                    channels_window.current_value = input_field.text.split()[1]
+                elif input_field.text.find('-') != -1:
+                    if channels_window.current_value == \
+                            input_field.text.split()[1]:
+                        channels_window.current_value = 'general'
         else:  # message
             utils.send_message(channels_window.current_value,
                                input_field.text)

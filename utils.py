@@ -124,7 +124,7 @@ def command_handler(cmd_string):
     help_text = """
     cchat commands
     """
-    if cmd_string.startswith('/addchannel'):
+    if cmd_string.startswith('/+channel'):
         args = cmd_string.split()
         if len(cmd_string.split()) < 2:
             return "Error: CHANNEL_NAME argument is required"
@@ -132,10 +132,20 @@ def command_handler(cmd_string):
             return "Error: too many arguments supplied for command"
         name = args[1]
         return add_channel(name)
+    elif cmd_string.startswith('/-channel'):
+        args = cmd_string.split()
+        if len(cmd_string.split()) < 2:
+            return "Error: CHANNEL_NAME argument is required"
+        elif len(cmd_string.split()) > 2:
+            return "Error: too many arguments supplied for command"
+        name = args[1]
+        return delete_channel(name)
     elif cmd_string.startswith('/cleanup'):
         if len(cmd_string.split()) > 1:
             return "Error: too many arguments supplied for command"
         return cleanup()
+    else:
+        return "Error: invalid command"
 
 
 def add_channel(name):
@@ -144,9 +154,17 @@ def add_channel(name):
             unique_name=name, created_by=identity)
         client.chat.services(service_sid).channels(name).members.create(
             identity=identity)
-        return f"\n{ansi_italics}{ansi_bold}#{name} created{ansi_end}\n"
+        return f"{ansi_italics}{ansi_bold}#{name} created{ansi_end}"
     except TwilioRestException as e:
-        return f"\n{ansi_red}{e.msg}{ansi_end}\n"
+        return f"{ansi_red}{e.msg}{ansi_end}"
+
+
+def delete_channel(name):
+    try:
+        client.chat.services(service_sid).channels(name).delete()
+        return f"{ansi_italics}{ansi_bold}#{name} deleted{ansi_end}"
+    except TwilioRestException as e:
+        return f"{ansi_red}{e.msg}{ansi_end}"
 
 
 def cleanup():
