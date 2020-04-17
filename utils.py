@@ -10,7 +10,7 @@ from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
 
 config = configparser.ConfigParser()
-config.read('.cchat.cfg')
+config.read('.user.cfg')
 
 spinner = Halo(spinner="dots", text="checking twilio credentials ... ")
 
@@ -26,8 +26,8 @@ ansi_italics = '\033[3m'
 ansi_end = '\033[0m'
 
 if not any((account_sid, api_key, api_secret, service_sid, auth_token)):
-    spinner.fail("One or more Twilio credentials not set. \
-                 Please check your .env file")
+    spinner.fail("One or more Twilio credentials not set. "
+                 "Please check your .env file")
     sys.exit()
 else:
     spinner.succeed("twilio credentials set")
@@ -59,8 +59,8 @@ except (KeyError, TypeError):
     config['user']['friendly_name'] = identity
     config['user']['sid'] = user.sid
 
-    # save user details in .cchat.cfg
-    with open('.cchat.cfg', 'w+') as configfile:
+    # save user details in .user.cfg
+    with open('.user.cfg', 'w+') as configfile:
         config.write(configfile)
 
     spinner.succeed(f"user {ansi_bold}{identity}{ansi_end} created")
@@ -169,9 +169,9 @@ def delete_channel(name):
 
 def cleanup():
     users = client.chat.services(service_sid).users.list()
-    for user in users:
-        if user.identity != 'admin':
-            client.chat.services(service_sid).users(user.sid).delete()
+    for u in users:
+        if u.identity != 'admin':
+            client.chat.services(service_sid).users(u.sid).delete()
     channel = client.chat.services(service_sid).channels(
         'general').fetch()
     messages = client.chat.services(service_sid) \

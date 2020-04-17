@@ -1,4 +1,4 @@
-import configparser
+import sqlite3
 import threading
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -6,9 +6,10 @@ from urllib.parse import parse_qs
 
 from halo import Halo
 from prompt_toolkit import ANSI
-from prompt_toolkit.application import Application
+from prompt_toolkit.application import Application, get_app
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.document import Document
+from prompt_toolkit.filters import Condition
 from prompt_toolkit.formatted_text import to_formatted_text, \
     fragment_list_to_text
 from prompt_toolkit.key_binding import KeyBindings
@@ -23,14 +24,19 @@ from prompt_toolkit.widgets import SearchToolbar, TextArea, Frame, RadioList
 import utils
 from utils import ansi_bold, ansi_italics, ansi_end
 
-config = configparser.ConfigParser()
-config.read('.cchat.cfg')
-identity = config['user']['identity']
+conn = sqlite3.connect('.chat.db', check_same_thread=False)
+c = conn.cursor()
+conn.execute('''CREATE TABLE IF NOT EXISTS history
+                    (id integer primary key, 
+                    msg_time time, sender text, msg text, channel text)''')
+
+identity = utils.config['user']['identity']
 
 spinner = Halo(spinner="dots", text="starting app ...")
 spinner.start()
 
 cmd_area_text = "type in command/message - ctrl-c to quit"
+active_channel = 'general'
 
 
 class ChatServer(BaseHTTPRequestHandler, ):
@@ -116,17 +122,37 @@ output_window = Frame(Window(BufferControl(
 def chat_handler(buffer, message):
     try:
         output = output_field.text + message
+        output_field.document = Document(
+            text=output, cursor_position=len(output),
+        )
     except BaseException as e:
-        output = "\n\n{}".format(e)
-
-    # Add text to output buffer.
-    output_field.document = Document(
-        text=output, cursor_position=len(output),
-    )
+        output = output_field.text + "{}\n".format(e)
+        output_field.document = Document(
+            text=output, cursor_position=len(output),
+        )
+    else:
+        """When a user switches channels, we want to clear the messages 
+        in the current channel and show the messages from the new channel.
+        When they come back to a previous channel, they expect to see the 
+        messages they left there (+new unread ones if any). Fetching all 
+        channel messages from the server each time would be expensive, 
+        so save chat in sqlite db and fetch from there."""
+        try:
+            msg_data = message.split()
+            c.execute('INSERT INTO history VALUES (NULL,?,?,?,?)',
+                      (msg_data[0], msg_data[1], msg_data[2],
+                       channels_window.current_value))
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            output = output_field.text + "{}\n".format(e)
+            output_field.document = Document(
+                text=output, cursor_position=len(output),
+            )
 
 
 channels_window = RadioList(utils.get_channels())
-channels_window.current_value = 'general'
+channels_window.current_value = active_channel
 channels_frame = Frame(channels_window, title="channels",
                        width=23)
 
@@ -164,6 +190,22 @@ def _(event):
 @bindings.add('tab')
 def tab_(event):
     focus_next(event)
+
+
+@Condition
+def input_buffer_active():
+    """Only activate 'enter' key binding if input buffer is not active"""
+    if not get_app().layout.buffer_has_focus:
+        global active_channel
+        output_field.text = '\ncurrently' + active_channel + '\n'
+        if active_channel != channels_window.current_value:
+            active_channel = channels_window.current_value
+            output_field.text = 'now' + channels_window.current_value
+
+
+@bindings.add('enter', filter=input_buffer_active)
+def enter_(event):
+    pass
 
 
 # Style.
