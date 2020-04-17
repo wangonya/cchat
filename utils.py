@@ -44,10 +44,11 @@ except (KeyError, TypeError):
     # create new user
     spinner.warn("new user")
     identity = input("enter username for registration: ").strip()
-    while not identity:
-        spinner.warn("a username is required for registration")
-        identity = input("enter username for registration: ").strip()
-        while identity in [id_.identity for id_ in identities]:
+    while not identity or identity in [id_.identity for id_ in identities]:
+        if not identity:
+            spinner.warn("a username is required for registration")
+            identity = input("enter username for registration: ").strip()
+        elif identity in [id_.identity for id_ in identities]:
             spinner.warn("that username is already taken")
             identity = input(
                 "enter a different username for registration: ").strip()
