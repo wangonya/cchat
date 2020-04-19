@@ -15,8 +15,6 @@ config.read('.user.cfg')
 spinner = Halo(spinner="dots", text="checking twilio credentials ... ")
 
 account_sid = os.getenv('ACCOUNT_SID')
-api_key = os.getenv('API_KEY')
-api_secret = os.getenv('API_SECRET')
 service_sid = os.getenv('SERVICE_SID')
 auth_token = os.getenv('AUTH_TOKEN')
 
@@ -25,7 +23,7 @@ ansi_bold = '\033[1m'
 ansi_italics = '\033[3m'
 ansi_end = '\033[0m'
 
-if not any((account_sid, api_key, api_secret, service_sid, auth_token)):
+if not any((account_sid, service_sid, auth_token)):
     spinner.fail("One or more Twilio credentials not set. "
                  "Please check your .env file")
     sys.exit()
