@@ -36,7 +36,6 @@ spinner = Halo(spinner="dots", text="starting app ...")
 spinner.start()
 
 cmd_area_text = "type in command/message - ctrl-c to quit"
-active_channel = 'general'
 
 
 class ChatServer(BaseHTTPRequestHandler, ):
@@ -73,22 +72,35 @@ def chat_server(server_class=HTTPServer,
     httpd.serve_forever()
 
 
-def process_response(response):
+def process_response(response, from_db=False):
+    """receives response from webhook when actions happen on the chat client
+    processes response and returns a formatted message to show on the client
+    response might also be from db in the case of fetching chat history"""
     try:
-        if response.get('/?EventType') and response['/?EventType'][0] in (
-                'onMemberAdded', 'onMemberRemoved',):
-            processed_response = f"{ansi_italics}{response['Identity'][0]} " \
-                                 f"{response['Reason'][0].lower()}{ansi_end}\n"
+        if from_db:
+            processed_response = ''
+            for line in response:
+                message_time = line[1]
+                message_from = line[2]
+                message_body = line[3]
+                processed_response += f"{message_time} " \
+                                      f"{message_from}  " \
+                                      f"{message_body}\n"
         else:
-            message_date = datetime.strptime(
-                response['DateCreated'][0], '%Y-%m-%dT%H:%M:%S.%fZ'
-            )
-            message_time = message_date.strftime("%H:%M")
-            message_from = response['From'][0]
-            message_body = response['Body'][0]
-            processed_response = f"{message_time} " \
-                                 f"{ansi_bold}{message_from}{ansi_end}  " \
-                                 f"{message_body}\n"
+            if response.get('/?EventType') and response['/?EventType'][0] in (
+                    'onMemberAdded', 'onMemberRemoved',):
+                processed_response = f"{ansi_italics}{response['Identity'][0]} " \
+                                     f"{response['Reason'][0].lower()}{ansi_end}\n"
+            else:
+                message_date = datetime.strptime(
+                    response['DateCreated'][0], '%Y-%m-%dT%H:%M:%S.%fZ'
+                )
+                message_time = message_date.strftime("%H:%M")
+                message_from = response['From'][0]
+                message_body = response['Body'][0]
+                processed_response = f"{message_time} " \
+                                     f"{ansi_bold}{message_from}{ansi_end}  " \
+                                     f"{message_body}\n"
         return f"{processed_response}"
     except KeyError as e:
         return f"Failed to parse response: {e}\n"
@@ -116,10 +128,11 @@ output_window = Frame(Window(BufferControl(
     focusable=False,
     input_processors=[FormatText()]),
     wrap_lines=True),
-    title="messages")
+    title="#general")
 
 
-def chat_handler(buffer, message):
+def chat_handler(buffer, message, from_db=False):
+    """from_db=True if showing chat history"""
     try:
         output = output_field.text + message
         output_field.document = Document(
@@ -137,22 +150,23 @@ def chat_handler(buffer, message):
         messages they left there (+new unread ones if any). Fetching all 
         channel messages from the server each time would be expensive, 
         so save chat in sqlite db and fetch from there."""
-        try:
-            msg_data = message.split()
-            c.execute('INSERT INTO history VALUES (NULL,?,?,?,?)',
-                      (msg_data[0], msg_data[1], msg_data[2],
-                       channels_window.current_value))
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
-            output = output_field.text + "{}\n".format(e)
-            output_field.document = Document(
-                text=output, cursor_position=len(output),
-            )
+        if not from_db:
+            try:
+                msg_data = message.split()
+                c.execute('INSERT INTO history VALUES (NULL,?,?,?,?)',
+                          (msg_data[0], msg_data[1], msg_data[2],
+                           channels_window.current_value))
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                output = output_field.text + "{}\n".format(e)
+                output_field.document = Document(
+                    text=output, cursor_position=len(output),
+                )
 
 
 channels_window = RadioList(utils.get_channels())
-channels_window.current_value = active_channel
+channels_window.current_value = 'general'
 channels_frame = Frame(channels_window, title="channels",
                        width=23)
 
@@ -196,11 +210,15 @@ def tab_(event):
 def input_buffer_active():
     """Only activate 'enter' key binding if input buffer is not active"""
     if not get_app().layout.buffer_has_focus:
-        global active_channel
-        output_field.text = '\ncurrently' + active_channel + '\n'
-        if active_channel != channels_window.current_value:
-            active_channel = channels_window.current_value
-            output_field.text = 'now' + channels_window.current_value
+        active_channel = channels_window.values[channels_window._selected_index][0]
+        output_window.title = f"#{active_channel}"
+        c.execute('SELECT * FROM history WHERE channel=?', (active_channel,))
+        chat_history = c.fetchall()
+        output_field.document = Document(
+            text='', cursor_position=0,
+        )
+        buffer = Application.current_buffer
+        chat_handler(buffer, process_response(chat_history, True), True)
 
 
 @bindings.add('enter', filter=input_buffer_active)
