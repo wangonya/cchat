@@ -56,7 +56,10 @@ class ChatServer(BaseHTTPRequestHandler, ):
         buffer = Application.current_buffer
         params = parse_qs(self.path)
         self.wfile.write(self._html(params))
-        chat_handler(buffer, process_response(params))
+        channel = params.get('/?ChannelSid') or params.get('ChannelSid')
+        if channel:
+            channel = channel[0]
+        chat_handler(buffer, process_response(params), channel=channel)
 
     def log_message(self, format, *args):
         """suppress logs"""
@@ -85,7 +88,7 @@ def process_response(response, from_db=False):
                 message_body = line[3]
                 processed_response += f"{message_time} " \
                                       f"{message_from}  " \
-                                      f"{message_body}\n"
+                                      f"{message_body}"
         else:
             if response.get('/?EventType') and response['/?EventType'][0] in (
                     'onMemberAdded', 'onMemberRemoved',):
@@ -110,11 +113,6 @@ def process_response(response, from_db=False):
 
 spinner.start("rendering interface ...")
 
-# layout.
-search_field = SearchToolbar()  # For reverse search.
-output_field = Buffer()
-output_field.text = f"logged in as {ansi_bold}{identity}{ansi_end}\n\n"
-
 
 class FormatText(Processor):
     def apply_transformation(self, input_):
@@ -123,21 +121,48 @@ class FormatText(Processor):
         return Transformation(fragments)
 
 
+# layout.
+search_field = SearchToolbar()  # for reverse search.
+output_field = Buffer()
+channels_window = RadioList(utils.get_channels())
+active_channel = channels_window.values[channels_window._selected_index][1]
+channels_frame = Frame(channels_window, title="channels",
+                       width=23)
+
 output_window = Frame(Window(BufferControl(
     buffer=output_field,
     focusable=False,
     input_processors=[FormatText()]),
     wrap_lines=True),
-    title="#general")
+    title=f"#{active_channel}")
+input_field = TextArea(
+    height=1,
+    prompt='> ',
+    multiline=False,
+    wrap_lines=False,
+    search_field=search_field,
+)
+
+command_window_frame = Frame(input_field, title=cmd_area_text)
+upper_container = VSplit([channels_frame, output_window])
+container = HSplit(
+    [
+        upper_container,
+        command_window_frame,
+        search_field,
+    ]
+)
 
 
-def chat_handler(buffer, message, from_db=False):
+def chat_handler(buffer, message, channel=None, from_db=False):
     """from_db=True if showing chat history"""
     try:
-        output = output_field.text + message
-        output_field.document = Document(
-            text=output, cursor_position=len(output),
-        )
+        active_channel_sid = channels_window.values[channels_window._selected_index][0]
+        if channel == active_channel_sid:  # only show the message if the channel it was sent to is the active one
+            output = output_field.text + message
+            output_field.document = Document(
+                text=output, cursor_position=len(output),
+            )
     except BaseException as e:
         output = output_field.text + "{}\n".format(e)
         output_field.document = Document(
@@ -152,11 +177,14 @@ def chat_handler(buffer, message, from_db=False):
         so save chat in sqlite db and fetch from there."""
         if not from_db:
             try:
-                msg_data = message.split()
+                msg_data = message.split(None, 2)
                 c.execute('INSERT INTO history VALUES (NULL,?,?,?,?)',
                           (msg_data[0], msg_data[1], msg_data[2],
-                           channels_window.current_value))
+                           channel))
                 conn.commit()
+            except IndexError:
+                # not a chat message
+                pass
             except Exception as e:
                 conn.rollback()
                 output = output_field.text + "{}\n".format(e)
@@ -165,32 +193,7 @@ def chat_handler(buffer, message, from_db=False):
                 )
 
 
-channels_window = RadioList(utils.get_channels())
-channels_window.current_value = 'general'
-channels_frame = Frame(channels_window, title="channels",
-                       width=23)
-
-upper_container = VSplit([channels_frame, output_window])
-
-input_field = TextArea(
-    height=1,
-    prompt='> ',
-    multiline=False,
-    wrap_lines=False,
-    search_field=search_field,
-)
-
-command_window_frame = Frame(input_field, title=cmd_area_text)
-
-container = HSplit(
-    [
-        upper_container,
-        command_window_frame,
-        search_field,
-    ]
-)
-
-# The key bindings.
+# key bindings.
 bindings = KeyBindings()
 
 
@@ -210,15 +213,17 @@ def tab_(event):
 def input_buffer_active():
     """Only activate 'enter' key binding if input buffer is not active"""
     if not get_app().layout.buffer_has_focus:
-        active_channel = channels_window.values[channels_window._selected_index][0]
+        global active_channel
+        active_channel = channels_window.values[channels_window._selected_index][1]
+        active_channel_sid = channels_window.values[channels_window._selected_index][0]
         output_window.title = f"#{active_channel}"
-        c.execute('SELECT * FROM history WHERE channel=?', (active_channel,))
+        c.execute('SELECT * FROM history WHERE channel=?', (active_channel_sid,))
         chat_history = c.fetchall()
         output_field.document = Document(
             text='', cursor_position=0,
         )
         buffer = Application.current_buffer
-        chat_handler(buffer, process_response(chat_history, True), True)
+        chat_handler(buffer, process_response(chat_history, True), active_channel_sid, True)
 
 
 @bindings.add('enter', filter=input_buffer_active)

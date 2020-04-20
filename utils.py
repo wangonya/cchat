@@ -93,7 +93,7 @@ def get_channels():
     channels = client.chat.services(service_sid).channels.list()
     for channel in channels:
         channels_list.append((
-            channel.unique_name,
+            channel.sid,
             channel.unique_name,
         ))
 
