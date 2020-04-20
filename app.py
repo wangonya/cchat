@@ -27,10 +27,11 @@ from utils import ansi_bold, ansi_italics, ansi_end
 conn = sqlite3.connect('.chat.db', check_same_thread=False)
 c = conn.cursor()
 conn.execute('''CREATE TABLE IF NOT EXISTS history
-                    (id integer primary key, 
+                    (id integer primary key,
                     msg_time time, sender text, msg text, channel text)''')
 
 identity = utils.config['user']['identity']
+general_ch = utils.config['channels']['general']
 
 spinner = Halo(spinner="dots", text="starting app ...")
 spinner.start()
@@ -125,6 +126,7 @@ class FormatText(Processor):
 search_field = SearchToolbar()  # for reverse search.
 output_field = Buffer()
 channels_window = RadioList(utils.get_channels())
+channels_window.current_value = general_ch
 active_channel = channels_window.values[channels_window._selected_index][1]
 channels_frame = Frame(channels_window, title="channels",
                        width=23)
@@ -169,11 +171,11 @@ def chat_handler(buffer, message, channel=None, from_db=False):
             text=output, cursor_position=len(output),
         )
     else:
-        """When a user switches channels, we want to clear the messages 
+        """When a user switches channels, we want to clear the messages
         in the current channel and show the messages from the new channel.
-        When they come back to a previous channel, they expect to see the 
-        messages they left there (+new unread ones if any). Fetching all 
-        channel messages from the server each time would be expensive, 
+        When they come back to a previous channel, they expect to see the
+        messages they left there (+new unread ones if any). Fetching all
+        channel messages from the server each time would be expensive,
         so save chat in sqlite db and fetch from there."""
         if not from_db:
             try:
@@ -217,13 +219,15 @@ def input_buffer_active():
         active_channel = channels_window.values[channels_window._selected_index][1]
         active_channel_sid = channels_window.values[channels_window._selected_index][0]
         output_window.title = f"#{active_channel}"
-        c.execute('SELECT * FROM history WHERE channel=?', (active_channel_sid,))
+        c.execute('SELECT * FROM history WHERE channel=?',
+                  (active_channel_sid,))
         chat_history = c.fetchall()
         output_field.document = Document(
             text='', cursor_position=0,
         )
         buffer = Application.current_buffer
-        chat_handler(buffer, process_response(chat_history, True), active_channel_sid, True)
+        chat_handler(buffer, process_response(
+            chat_history, True), active_channel_sid, True)
 
 
 @bindings.add('enter', filter=input_buffer_active)
@@ -255,11 +259,13 @@ def command_handler(buffer):
                 # channel command - refresh channel list
                 channels_window.values = utils.get_channels()
                 if input_field.text.find('+') != -1:
-                    channels_window.current_value = input_field.text.split()[1]
+                    for chan in channels_window.values:
+                        if chan[1] == input_field.text.split()[1]:
+                            channels_window.current_value = chan[0]
                 elif input_field.text.find('-') != -1:
-                    if channels_window.current_value == \
-                            input_field.text.split()[1]:
-                        channels_window.current_value = 'general'
+                    for chan in channels_window.values:
+                        if chan[1] == input_field.text.split()[1]:
+                            channels_window.current_value = general_chan
         else:  # message
             utils.send_message(channels_window.current_value,
                                input_field.text)

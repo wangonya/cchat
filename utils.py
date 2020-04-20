@@ -72,11 +72,13 @@ except (KeyError, TypeError):
     except TwilioRestException as err:
         if err.status == 404:
             # if !general channel, create it and add the user
-            client.chat.services(service_sid).channels.create(
+            gen_chan = client.chat.services(service_sid).channels.create(
                 friendly_name='General Chat Channel',
                 unique_name='general',
                 created_by=identity
             )
+            config['channels'] = {}
+            config['channels']['general'] = gen_chan.sid
             client.chat.services(service_sid).channels(
                 'general').members.create(identity=identity)
             spinner.succeed(f"user added to #general")
@@ -171,11 +173,7 @@ def cleanup():
     for u in users:
         if u.identity != 'admin':
             client.chat.services(service_sid).users(u.sid).delete()
-    channel = client.chat.services(service_sid).channels(
-        'general').fetch()
-    messages = client.chat.services(service_sid) \
-        .channels(channel.sid).messages.list()
-    for message in messages:
-        client.chat.services(service_sid).channels(channel.sid) \
-            .messages(message.sid).delete()
+    channels = client.chat.services(service_sid).channels.list()
+    for ch in channels:
+        client.chat.services(service_sid).channels(ch.sid).delete()
     return "cleanup done"
