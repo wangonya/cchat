@@ -262,10 +262,11 @@ def command_handler(buffer):
                     for chan in channels_window.values:
                         if chan[1] == input_field.text.split()[1]:
                             channels_window.current_value = chan[0]
+                            output_window.title = f"#{chan[1]}"
                 elif input_field.text.find('-') != -1:
-                    for chan in channels_window.values:
-                        if chan[1] == input_field.text.split()[1]:
-                            channels_window.current_value = general_chan
+                    if input_field.text.split()[1] not in [ch[1] for ch in channels_window.values]:
+                        channels_window.current_value = general_ch
+                        output_window.title = f"#general"
         else:  # message
             utils.send_message(channels_window.current_value,
                                input_field.text)
