@@ -10,7 +10,7 @@ from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
 
 config = configparser.ConfigParser()
-config.read('.user.cfg')
+config.read('.cchat.cfg')
 
 spinner = Halo(spinner="dots", text="checking twilio credentials ... ")
 
@@ -59,7 +59,7 @@ except (KeyError, TypeError):
     config['user']['sid'] = user.sid
 
     # save user details in .user.cfg
-    with open('.user.cfg', 'w+') as configfile:
+    with open('.cchat.cfg', 'w+') as configfile:
         config.write(configfile)
 
     spinner.succeed(f"user {ansi_bold}{identity}{ansi_end} created")
@@ -79,6 +79,8 @@ except (KeyError, TypeError):
             )
             config['channels'] = {}
             config['channels']['general'] = gen_chan.sid
+            with open('.cchat.cfg', 'w+') as configfile:
+                config.write(configfile)
             client.chat.services(service_sid).channels(
                 'general').members.create(identity=identity)
             spinner.succeed(f"user added to #general")
