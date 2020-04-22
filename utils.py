@@ -106,6 +106,10 @@ def get_channels():
             channel.unique_name,
         ))
 
+    # have #general always first in list
+    general_ch = config['channels']['general']
+    channels_list.remove((general_ch, 'general'))
+    channels_list.insert(0, (general_ch, 'general'))
     return channels_list
 
 
