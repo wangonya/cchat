@@ -37,32 +37,36 @@ try:
     identity = config['user']['identity']
     spinner.succeed(f"logged in as {identity}")
 except (KeyError, TypeError):
-    # get current users to check for duplicate username
-    identities = client.chat.services(service_sid).users.list()
-    # create new user
-    spinner.warn("new user")
-    identity = input("enter username for registration: ").strip()
-    while not identity or identity in [id_.identity for id_ in identities]:
-        if not identity:
-            spinner.warn("a username is required for registration")
-            identity = input("enter username for registration: ").strip()
-        elif identity in [id_.identity for id_ in identities]:
-            spinner.warn("that username is already taken")
-            identity = input(
-                "enter a different username for registration: ").strip()
-    spinner.start("creating new user ...")
-    user = client.chat.services(service_sid).users.create(
-        identity=identity, friendly_name=identity)
-    config['user'] = {}
-    config['user']['identity'] = identity
-    config['user']['friendly_name'] = identity
-    config['user']['sid'] = user.sid
+    try:
+        # get current users to check for duplicate username
+        identities = client.chat.services(service_sid).users.list()
+        # create new user
+        spinner.warn("new user")
+        identity = input("enter username for registration: ").strip()
+        while not identity or identity in [id_.identity for id_ in identities]:
+            if not identity:
+                spinner.warn("a username is required for registration")
+                identity = input("enter username for registration: ").strip()
+            elif identity in [id_.identity for id_ in identities]:
+                spinner.warn("that username is already taken")
+                identity = input(
+                    "enter a different username for registration: ").strip()
+        spinner.start("creating new user ...")
+        user = client.chat.services(service_sid).users.create(
+            identity=identity, friendly_name=identity)
+        config['user'] = {}
+        config['user']['identity'] = identity
+        config['user']['friendly_name'] = identity
+        config['user']['sid'] = user.sid
 
-    # save user details in .user.cfg
-    with open('.cchat.cfg', 'w+') as configfile:
-        config.write(configfile)
+        # save user details in .user.cfg
+        with open('.cchat.cfg', 'w+') as configfile:
+            config.write(configfile)
 
-    spinner.succeed(f"user {ansi_bold}{identity}{ansi_end} created")
+        spinner.succeed(f"user {ansi_bold}{identity}{ansi_end} created")
+    except KeyboardInterrupt:
+        spinner.fail("cancelled")
+        sys.exit()
 
     # add user to general channel
     try:
