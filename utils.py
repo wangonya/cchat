@@ -15,7 +15,8 @@ config.read('.cchat.cfg')
 spinner = Halo(spinner="dots", text="checking twilio credentials ... ")
 
 account_sid = os.getenv('ACCOUNT_SID')
-service_sid = os.getenv('SERVICE_SID')
+chat_service_sid = os.getenv('CHAT_SERVICE_SID')
+sms_service_sid = os.getenv('SMS_SERVICE_SID')
 auth_token = os.getenv('AUTH_TOKEN')
 
 ansi_red = '\033[0;31m'
@@ -23,7 +24,7 @@ ansi_bold = '\033[1m'
 ansi_italics = '\033[3m'
 ansi_end = '\033[0m'
 
-if not any((account_sid, service_sid, auth_token)):
+if not any((account_sid, sms_service_sid, chat_service_sid, auth_token)):
     spinner.fail("One or more Twilio credentials not set. "
                  "Please check your .env file")
     sys.exit()
@@ -39,7 +40,7 @@ try:
 except (KeyError, TypeError):
     try:
         # get current users to check for duplicate username
-        identities = client.chat.services(service_sid).users.list()
+        identities = client.chat.services(chat_service_sid).users.list()
         # create new user
         spinner.warn("new user")
         identity = input("enter username for registration: ").strip()
@@ -52,7 +53,7 @@ except (KeyError, TypeError):
                 identity = input(
                     "enter a different username for registration: ").strip()
         spinner.start("creating new user ...")
-        user = client.chat.services(service_sid).users.create(
+        user = client.chat.services(chat_service_sid).users.create(
             identity=identity, friendly_name=identity)
         config['user'] = {}
         config['user']['identity'] = identity
@@ -70,13 +71,13 @@ except (KeyError, TypeError):
 
     # add user to general channel
     try:
-        client.chat.services(service_sid).channels(
+        client.chat.services(chat_service_sid).channels(
             'general').members.create(identity=identity)
         spinner.succeed(f"user added to #general")
     except TwilioRestException as err:
         if err.status == 404:
             # if !general channel, create it and add the user
-            gen_chan = client.chat.services(service_sid).channels.create(
+            gen_chan = client.chat.services(chat_service_sid).channels.create(
                 friendly_name='General Chat Channel',
                 unique_name='general',
                 created_by=identity
@@ -85,7 +86,7 @@ except (KeyError, TypeError):
             config['channels']['general'] = gen_chan.sid
             with open('.cchat.cfg', 'w+') as configfile:
                 config.write(configfile)
-            client.chat.services(service_sid).channels(
+            client.chat.services(chat_service_sid).channels(
                 'general').members.create(identity=identity)
             spinner.succeed(f"user added to #general")
         else:
@@ -98,7 +99,7 @@ def get_channels():
     channels_list = []
 
     # fetch service channels
-    channels = client.chat.services(service_sid).channels.list()
+    channels = client.chat.services(chat_service_sid).channels.list()
     for channel in channels:
         channels_list.append((
             channel.sid,
@@ -111,7 +112,7 @@ def get_channels():
 def send_message(channel, message):
     # creating a message with the client won't trigger a webhook
     # so do a direct POST request to the api
-    url = f"https://chat.twilio.com/v2/Services/{service_sid}/Channels/" \
+    url = f"https://chat.twilio.com/v2/Services/{chat_service_sid}/Channels/" \
           f"{channel}/Messages"
     data = {
         "From": identity,
@@ -157,9 +158,9 @@ def command_handler(cmd_string):
 
 def add_channel(name):
     try:
-        client.chat.services(service_sid).channels.create(
+        client.chat.services(chat_service_sid).channels.create(
             unique_name=name, created_by=identity)
-        client.chat.services(service_sid).channels(name).members.create(
+        client.chat.services(chat_service_sid).channels(name).members.create(
             identity=identity)
         return f"{ansi_italics}{ansi_bold}#{name} created{ansi_end}"
     except TwilioRestException as e:
@@ -168,18 +169,18 @@ def add_channel(name):
 
 def delete_channel(name):
     try:
-        client.chat.services(service_sid).channels(name).delete()
+        client.chat.services(chat_service_sid).channels(name).delete()
         return f"{ansi_italics}{ansi_bold}#{name} deleted{ansi_end}"
     except TwilioRestException as e:
         return f"{ansi_red}{e.msg}{ansi_end}"
 
 
 def cleanup():
-    users = client.chat.services(service_sid).users.list()
+    users = client.chat.services(chat_service_sid).users.list()
     for u in users:
         if u.identity != 'admin':
-            client.chat.services(service_sid).users(u.sid).delete()
-    channels = client.chat.services(service_sid).channels.list()
+            client.chat.services(chat_service_sid).users(u.sid).delete()
+    channels = client.chat.services(chat_service_sid).channels.list()
     for ch in channels:
-        client.chat.services(service_sid).channels(ch.sid).delete()
+        client.chat.services(chat_service_sid).channels(ch.sid).delete()
     return "cleanup done"
