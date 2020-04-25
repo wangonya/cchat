@@ -100,16 +100,31 @@ def get_channels():
 
     # fetch service channels
     channels = client.chat.services(chat_service_sid).channels.list()
+    gen = None
     for channel in channels:
         channels_list.append((
             channel.sid,
             channel.unique_name,
         ))
 
+        if not gen and channel.unique_name == 'general':
+            gen = channel.sid
+
+    # add general to config if it doesn't exist
+    try:
+        config['channels']['general']
+    except KeyError:
+        config['channels'] = {}
+        config['channels']['general'] = gen
+        with open('.cchat.cfg', 'w+') as configfile:
+            config.write(configfile)
+
+
     # have #general always first in list
     general_ch = config['channels']['general']
     channels_list.remove((general_ch, 'general'))
     channels_list.insert(0, (general_ch, 'general'))
+
     return channels_list
 
 

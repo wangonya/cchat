@@ -31,7 +31,6 @@ conn.execute('''CREATE TABLE IF NOT EXISTS history
                     msg_time time, sender text, msg text, channel text)''')
 
 identity = utils.config['user']['identity']
-general_ch = utils.config['channels']['general']
 
 spinner = Halo(spinner="dots", text="starting app ...")
 spinner.start()
@@ -126,6 +125,7 @@ class FormatText(Processor):
 search_field = SearchToolbar()  # for reverse search.
 output_field = Buffer()
 channels_window = RadioList(utils.get_channels())
+general_ch = utils.config['channels']['general']
 channels_window.current_value = general_ch
 active_channel = channels_window.values[channels_window._selected_index][1]
 channels_frame = Frame(channels_window, title="channels",
