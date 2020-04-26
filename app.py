@@ -1,5 +1,6 @@
 import sqlite3
 import threading
+import notify2
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs
@@ -34,6 +35,11 @@ identity = utils.config['user']['identity']
 
 spinner = Halo(spinner="dots", text="starting app ...")
 spinner.start()
+
+notify2.init("cchat")
+n = notify2.Notification(None)
+n.set_urgency(notify2.URGENCY_NORMAL)
+n.set_timeout(5000)
 
 cmd_area_text = "type in command/message - ctrl-c to quit"
 
@@ -184,6 +190,11 @@ def chat_handler(buffer, message, channel=None, from_db=False):
                           (msg_data[0], msg_data[1], msg_data[2],
                            channel))
                 conn.commit()
+                # show notification if user is @mentioned
+                if f'@{identity}' in msg_data[2].split():
+                    n.update('cchat',
+                             f'You\'ve been mentioned on #{active_channel}')
+                    n.show()
             except IndexError:
                 # not a chat message
                 pass
