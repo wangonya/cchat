@@ -119,7 +119,6 @@ def get_channels():
         with open('.cchat.cfg', 'w+') as configfile:
             config.write(configfile)
 
-
     # have #general always first in list
     general_ch = config['channels']['general']
     channels_list.remove((general_ch, 'general'))
@@ -167,6 +166,11 @@ def command_handler(cmd_string):
             return "Error: too many arguments supplied for command"
         name = args[1]
         return delete_channel(name)
+    elif cmd_string.startswith('/sms'):
+        args = cmd_string.split(None, 2)
+        if len(cmd_string.split()) < 3:
+            return "Error: MOBILE_NUMBER and MESSAGE arguments are required"
+        return send_sms(args[1], args[2])
     elif cmd_string.startswith('/cleanup'):
         if len(cmd_string.split()) > 1:
             return "Error: too many arguments supplied for command"
@@ -190,6 +194,15 @@ def delete_channel(name):
     try:
         client.chat.services(chat_service_sid).channels(name).delete()
         return f"{ansi_italics}{ansi_bold}#{name} deleted{ansi_end}"
+    except TwilioRestException as e:
+        return f"{ansi_red}{e.msg}{ansi_end}"
+
+
+def send_sms(number, sms):
+    try:
+        client.messages.create(
+            body=sms, messaging_service_sid=sms_service_sid, to=number)
+        return f"{ansi_italics}{ansi_bold}sms sent to {number}{ansi_end}"
     except TwilioRestException as e:
         return f"{ansi_red}{e.msg}{ansi_end}"
 
