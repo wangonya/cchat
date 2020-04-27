@@ -8,6 +8,7 @@ import configparser
 from halo import Halo
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
+from authy.api import AuthyApiClient
 
 config = configparser.ConfigParser()
 config.read('.cchat.cfg')
@@ -18,13 +19,14 @@ account_sid = os.getenv('ACCOUNT_SID')
 chat_service_sid = os.getenv('CHAT_SERVICE_SID')
 sms_service_sid = os.getenv('SMS_SERVICE_SID')
 auth_token = os.getenv('AUTH_TOKEN')
+authy_key = os.getenv('AUTHY_API_KEY')
 
 ansi_red = '\033[0;31m'
 ansi_bold = '\033[1m'
 ansi_italics = '\033[3m'
 ansi_end = '\033[0m'
 
-if not any((account_sid, sms_service_sid, chat_service_sid, auth_token)):
+if not any((account_sid, sms_service_sid, chat_service_sid, auth_token, authy_key)):
     spinner.fail("One or more Twilio credentials not set. "
                  "Please check your .env file")
     sys.exit()
@@ -32,9 +34,18 @@ else:
     spinner.succeed("twilio credentials set")
 
 client = Client(account_sid, auth_token)
+authy_api = AuthyApiClient(authy_key)
 
 spinner.start("checking user credentials ...")
 try:
+    authy_id = config['user']['authy_id']
+    authy_token = config['user']['authy_token']
+    verification = authy_api.tokens.verify(authy_id, token=auth_token)
+    if verification.ok().message == "Token is valid.":
+        spinner.succeed("authy verified")
+    else:
+        spinner.fail("invalid authy token")
+        sys.exit()
     identity = config['user']['identity']
     spinner.succeed(f"logged in as {identity}")
 except (KeyError, TypeError):
@@ -43,19 +54,52 @@ except (KeyError, TypeError):
         identities = client.chat.services(chat_service_sid).users.list()
         # create new user
         spinner.warn("new user")
-        identity = input("enter username for registration: ").strip()
+
+        email = input("enter email: ").strip()
+        while not email or not re.match("[^@]+@[^@]+\.[^@]+", email):
+            if not email:
+                spinner.warn("an email is required for registration")
+                email = input("enter email: ").strip()
+            elif not re.match("[^@]+@[^@]+\.[^@]+", email):
+                spinner.warn("invali email format")
+                email = input("enter email: ").strip()
+
+        country_code = input("enter country code: ")
+        while not country_code:
+            spinner.warn("country code is required for registration")
+            country_code = input("enter country code (without +): ")
+
+        phone = input("enter phone number (without country code): ")
+        while not phone:
+            spinner.warn("phone number is required for registration")
+            phone = input("enter phone number (without country code): ")
+
+        user = authy_api.users.create(
+                email=email,
+                phone=phone,
+                country_code=int(country_code))
+
+        if user.ok():
+            config['user'] = {}
+            config['user']['authy_id'] = user.id
+        else:
+            spinner.fail("The email, phone or country code you provided were invalid. Please check them and try again.")
+            sys.exit()
+
+        #TODO: VERIFY
+
+        identity = input("enter username: ").strip()
         while not identity or identity in [id_.identity for id_ in identities]:
             if not identity:
                 spinner.warn("a username is required for registration")
-                identity = input("enter username for registration: ").strip()
+                identity = input("enter username: ").strip()
             elif identity in [id_.identity for id_ in identities]:
                 spinner.warn("that username is already taken")
                 identity = input(
-                    "enter a different username for registration: ").strip()
+                    "enter a different username: ").strip()
         spinner.start("creating new user ...")
         user = client.chat.services(chat_service_sid).users.create(
             identity=identity, friendly_name=identity)
-        config['user'] = {}
         config['user']['identity'] = identity
         config['user']['friendly_name'] = identity
         config['user']['sid'] = user.sid
