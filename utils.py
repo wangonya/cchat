@@ -2,6 +2,7 @@
 
 import os
 import sys
+import re
 import requests
 import configparser
 
@@ -40,11 +41,11 @@ spinner.start("checking user credentials ...")
 try:
     authy_id = config['user']['authy_id']
     authy_token = config['user']['authy_token']
-    verification = authy_api.tokens.verify(authy_id, token=auth_token)
-    if verification.ok().message == "Token is valid.":
+    verification = authy_api.tokens.verify(authy_id, token=authy_token)
+    if verification.ok():
         spinner.succeed("authy verified")
     else:
-        spinner.fail("invalid authy token")
+        spinner.fail(f"invalid authy token: {verification.errors()}")
         sys.exit()
     identity = config['user']['identity']
     spinner.succeed(f"logged in as {identity}")
@@ -64,15 +65,15 @@ except (KeyError, TypeError):
                 spinner.warn("invali email format")
                 email = input("enter email: ").strip()
 
-        country_code = input("enter country code: ")
+        country_code = input("enter country code: ").strip()
         while not country_code:
             spinner.warn("country code is required for registration")
-            country_code = input("enter country code (without +): ")
+            country_code = input("enter country code (without +): ").strip()
 
-        phone = input("enter phone number (without country code): ")
+        phone = input("enter phone number (without country code): ").strip()
         while not phone:
             spinner.warn("phone number is required for registration")
-            phone = input("enter phone number (without country code): ")
+            phone = input("enter phone number (without country code): ").strip()
 
         user = authy_api.users.create(
                 email=email,
@@ -81,12 +82,34 @@ except (KeyError, TypeError):
 
         if user.ok():
             config['user'] = {}
-            config['user']['authy_id'] = user.id
+            config['user']['authy_id'] = str(user.id)
         else:
-            spinner.fail("The email, phone or country code you provided were invalid. Please check them and try again.")
+            spinner.fail("The email, phone or country code you provided were invalid. Please check them and try again.\n"
+                         f"Errors: {user.errors()}")
             sys.exit()
 
-        #TODO: VERIFY
+        authy_id = config['user']['authy_id']
+        sms = authy_api.users.request_sms(authy_id)
+
+        if sms.ok():
+            spinner.succeed(f"sms token sent to {country_code}{phone}")
+        else:
+            spinner.fail("failed to send sms token")
+            sys.exit()
+
+        token = input("enter received sms token: ").strip()
+        while not token:
+            spinner.warn("sms token is required for registration")
+            token = input("enter received sms token: ").strip()
+
+        verification = authy_api.tokens.verify(authy_id, token=token)
+        
+        if verification.ok():
+            spinner.succeed("sms token verified")
+            config['user']['authy_token'] = token
+        else:
+            spinner.fail("sms token verification failed")
+            sys.exit()
 
         identity = input("enter username: ").strip()
         while not identity or identity in [id_.identity for id_ in identities]:
