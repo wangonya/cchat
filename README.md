@@ -88,7 +88,7 @@ source .env
 
 If any of these are not filled out, the app will not run.
 
-![screenshot]()
+![screenshot](https://i.ibb.co/XxbcVqG/2020-04-29-06-39.png)
 
 5. Run the application
 
@@ -108,11 +108,11 @@ An sms token will be sent to the phone number provided.
 
 After providing the correct token, a username as a last step to identify you in the chat channels will be necessary.
 
-![screenshot]()
+![screenshot](https://i.ibb.co/vwrps0Q/cchat-auth.png)
 
 Subsequent logins will be automatic.
 
-![gif]()
+![gif](https://i.ibb.co/ZLsB1Fh/valid.gif)
 
 
 7. ngrok
@@ -129,12 +129,14 @@ In a different terminal, cd into where you have your ngrok and run:
 This should give you a forwarding link, which you'll then need to copy into your webhook in the 
 Programmable Chat API settings.
 
-![screenshot ngrok]()
+![screenshot ngrok](https://i.ibb.co/rtS7XL3/twilio-ngrok.png)
+
+Also make sure you check/enable the options marked in red.
 
 
 ### Using the app
 
-![app-screenshot]()
+![app-screenshot](https://i.ibb.co/7tqTdy3/cchat-interface.png)
 
 - Send messages by typing in the input box at the bottom and pressing enter
 - Create a new channel by running `/+channel CHANNEL_NAME`
