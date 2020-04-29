@@ -12,7 +12,7 @@ This application provides a command line interface where registered users can ch
 - Terminal interface
 - Chat using Twilio's Programmable Chat API
 - Create and delete channels using the `/+channel` and `/-channel` commands
-- Receive system notifications where your username is @mentioned in a channel
+- Receive system notifications when your username is @mentioned in a channel
 - Send sms to teammates right from the chat interface using the `/sms` command
 
 ## Set up
@@ -86,7 +86,7 @@ After you've filled everything out, run:
 source .env
 ```
 
-If any of these are not filled out, the app will not run.
+If any of these are not filled, the app will not run.
 
 ![screenshot](https://i.ibb.co/XxbcVqG/2020-04-29-06-39.png)
 
@@ -144,6 +144,9 @@ Also make sure you check/enable the options marked in red.
 - Change focus from the input area to the channels window and back by pressing `TAB`
 - With the channels window in focus, switch channels using the up and down keys
 - Send an sms by running `/sms PHONE_NUMBER MESSAGE`
+
+PS: Chat history is saved in an in-memory sqlite database so it gets lost once 
+the app is closed.
 
 ### Tests
 
