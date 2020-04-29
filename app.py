@@ -25,9 +25,9 @@ from prompt_toolkit.widgets import SearchToolbar, TextArea, Frame, RadioList
 import utils
 from utils import ansi_bold, ansi_italics, ansi_end
 
-conn = sqlite3.connect('.chat.db', check_same_thread=False)
+conn = sqlite3.connect(':memory:', check_same_thread=False)
 c = conn.cursor()
-conn.execute('''CREATE TABLE IF NOT EXISTS history
+conn.execute('''CREATE TABLE history
                     (id integer primary key,
                     msg_time time, sender text, msg text, channel text)''')
 
