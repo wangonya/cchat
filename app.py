@@ -133,7 +133,6 @@ output_field = Buffer()
 channels_window = RadioList(utils.get_channels())
 general_ch = utils.config['channels']['general']
 channels_window.current_value = general_ch
-active_channel = channels_window.values[channels_window._selected_index][1]
 channels_frame = Frame(channels_window, title="channels",
                        width=23)
 
@@ -142,7 +141,7 @@ output_window = Frame(Window(BufferControl(
     focusable=False,
     input_processors=[FormatText()]),
     wrap_lines=True),
-    title=f"#{active_channel}")
+    title="#general")
 input_field = TextArea(
     height=1,
     prompt='> ',
@@ -165,7 +164,7 @@ container = HSplit(
 def chat_handler(buffer, message, channel=None, from_db=False):
     """from_db=True if showing chat history"""
     try:
-        active_channel_sid = channels_window.values[channels_window._selected_index][0]
+        active_channel_sid = channels_window.current_value
         if channel == active_channel_sid:  # only show the message if the channel it was sent to is the active one
             output = output_field.text + message
             output_field.document = Document(
@@ -192,8 +191,9 @@ def chat_handler(buffer, message, channel=None, from_db=False):
                 conn.commit()
                 # show notification if user is @mentioned
                 if f'@{identity}' in msg_data[2].split():
+                    mentioned_channel = [ch[1] for ch in utils.get_channels() if ch[0] == channel][0]
                     n.update('cchat',
-                             f'You\'ve been mentioned on #{active_channel}')
+                             f'You\'ve been mentioned on #{mentioned_channel}')
                     n.show()
             except IndexError:
                 # not a chat message
@@ -226,9 +226,9 @@ def tab_(event):
 def input_buffer_active():
     """Only activate 'enter' key binding if input buffer is not active"""
     if not get_app().layout.buffer_has_focus:
-        global active_channel
         active_channel = channels_window.values[channels_window._selected_index][1]
         active_channel_sid = channels_window.values[channels_window._selected_index][0]
+        channels_window.current_value = active_channel_sid
         output_window.title = f"#{active_channel}"
         c.execute('SELECT * FROM history WHERE channel=?',
                   (active_channel_sid,))
@@ -237,8 +237,10 @@ def input_buffer_active():
             text='', cursor_position=0,
         )
         buffer = Application.current_buffer
-        chat_handler(buffer, process_response(
-            chat_history, True), active_channel_sid, True)
+        chat_handler(buffer,
+                     process_response(chat_history, True),
+                     active_channel_sid,
+                     True)
 
 
 @bindings.add('enter', filter=input_buffer_active)
@@ -271,6 +273,17 @@ def command_handler(buffer):
                 channels_window.values = utils.get_channels()
                 channels_window.current_value = general_ch
                 output_window.title = "#general"
+                c.execute('SELECT * FROM history WHERE channel=?',
+                          (general_ch,))
+                chat_history = c.fetchall()
+                output_field.document = Document(
+                    text='', cursor_position=0,
+                )
+                buffer = Application.current_buffer
+                chat_handler(buffer,
+                             process_response(chat_history, True),
+                             general_ch,
+                             True)
         elif input_field.text.strip():  # message
             utils.send_message(channels_window.current_value,
                                input_field.text)
