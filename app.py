@@ -278,7 +278,7 @@ def command_handler(buffer):
                     if input_field.text.split()[1] not in [ch[1] for ch in channels_window.values]:
                         channels_window.current_value = general_ch
                         output_window.title = f"#general"
-        else:  # message
+        elif input_field.text.strip():  # message
             utils.send_message(channels_window.current_value,
                                input_field.text)
     except BaseException as e:
