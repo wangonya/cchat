@@ -218,7 +218,7 @@ def command_handler(cmd_string):
     help_text = """
     cchat commands
     """
-    if cmd_string.startswith('/+channel'):
+    if cmd_string.startswith('/+channel '):
         args = cmd_string.split()
         if len(cmd_string.split()) < 2:
             return "Error: CHANNEL_NAME argument is required"
@@ -226,7 +226,7 @@ def command_handler(cmd_string):
             return "Error: too many arguments supplied for command"
         name = args[1]
         return add_channel(name)
-    elif cmd_string.startswith('/-channel'):
+    elif cmd_string.startswith('/-channel '):
         args = cmd_string.split()
         if len(cmd_string.split()) < 2:
             return "Error: CHANNEL_NAME argument is required"
@@ -234,12 +234,12 @@ def command_handler(cmd_string):
             return "Error: too many arguments supplied for command"
         name = args[1]
         return delete_channel(name)
-    elif cmd_string.startswith('/sms'):
+    elif cmd_string.startswith('/sms '):
         args = cmd_string.split(None, 2)
         if len(cmd_string.split()) < 3:
             return "Error: MOBILE_NUMBER and MESSAGE arguments are required"
         return send_sms(args[1], args[2])
-    elif cmd_string.startswith('/cleanup'):
+    elif cmd_string.startswith('/cleanup '):
         if len(cmd_string.split()) > 1:
             return "Error: too many arguments supplied for command"
         return cleanup()
