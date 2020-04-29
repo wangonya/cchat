@@ -269,15 +269,8 @@ def command_handler(buffer):
                     input_field.text.find('channel') != -1:
                 # channel command - refresh channel list
                 channels_window.values = utils.get_channels()
-                if input_field.text.find('+') != -1:
-                    for chan in channels_window.values:
-                        if chan[1] == input_field.text.split()[1]:
-                            channels_window.current_value = chan[0]
-                            output_window.title = f"#{chan[1]}"
-                elif input_field.text.find('-') != -1:
-                    if input_field.text.split()[1] not in [ch[1] for ch in channels_window.values]:
-                        channels_window.current_value = general_ch
-                        output_window.title = f"#general"
+                channels_window.current_value = general_ch
+                output_window.title = "#general"
         elif input_field.text.strip():  # message
             utils.send_message(channels_window.current_value,
                                input_field.text)
