@@ -233,6 +233,8 @@ def command_handler(cmd_string):
         elif len(cmd_string.split()) > 2:
             return "Error: too many arguments supplied for command"
         name = args[1]
+        if name == 'general':
+            return "#general can't be deleted"
         return delete_channel(name)
     elif cmd_string.startswith('/sms '):
         args = cmd_string.split(None, 2)
