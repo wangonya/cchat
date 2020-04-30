@@ -148,6 +148,14 @@ Also make sure you check/enable the options marked in red.
 PS: Chat history is saved in an in-memory sqlite database so it gets lost once 
 the app is closed.
 
+You cannot run two sessions of this app at the same time because the port 8000 will already be in use. 
+To test out chatting between different users, you can set up one of the [starter apps](https://www.twilio.com/docs/chat/javascript/quickstart#download-configure-and-run-the-starter-app) 
+with the same credentials in the `.env` so that the app is connected to the same service. 
+
+Below is an example of a chat session between two web clients and the terminal client.
+
+![chat](https://i.ibb.co/nLNKT4t/chat.gif)
+
 ### Tests
 
 The project does not have tests yet. TODO.                                                                |
