@@ -9,7 +9,7 @@ idna==2.9
 log-symbols==0.0.14
 notify2==0.3.1
 prompt-toolkit==3.0.5
-PyJWT==1.7.1
+PyJWT==2.4.0
 pytz==2019.3
 requests==2.23.0
 six==1.14.0
